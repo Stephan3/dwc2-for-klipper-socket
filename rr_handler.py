@@ -30,7 +30,7 @@ class rr_handler(tornado.web.RequestHandler):
 			return
 		#	clients - curl http://127.0.0.1:4700/rr_clients |jq
 		if "rr_clients" in self.request.uri:
-			repl_ = self.clients
+			self.write(json.dumps(self.clients))
 			return
 		#
 		#
@@ -260,11 +260,11 @@ async def rr_gcode(self):
 		'M25': cmd_M25 ,		#	pause print
 		'M32': cmd_M32 ,		#	Start sdprint
 		'M98': cmd_M98 ,		#	run macro
-		#'M106': cmd_M106 ,		#	set fan
-		#'M120': cmd_M120 ,		#	save gcode state
-		#'M121': cmd_M121 ,		#	restore gcode state
+		'M106': cmd_M106 ,		#	set fan
+		'M120': cmd_M120 ,		#	save gcode state
+		'M121': cmd_M121 ,		#	restore gcode state
 		#'M140': cmd_M140 ,		#	set bedtemp(limit to 0 mintemp)
-		#'M290': cmd_M290 ,		#	set babysteps
+		'M290': cmd_M290 ,		#	set babysteps
 		#'M999': cmd_M999		#	issue restart
 	}
 
@@ -580,10 +580,36 @@ def cmd_M98(params, self):
 			for line in [x.strip() for x in lines]:
 				response += line + "\n"
 			return response
+#	rrf M106 translation to klipper scale
+def cmd_M106(params, self):
+
+	if float(params['S']) < 1.01:
+		command = str( params['#command'] + " S" + str(int( float(params['S']) * 255 )) )
+	else:
+		command = str( params['#command'] + " S" + str(int( float(params['S']) )) )
+
+	if float(params['S']) < .05:
+		command = str("M107")
+
+	return command
 #	emergency
 def cmd_M112(self):
 	req_ = self.klippy.form_request( "emergency_stop", {} )
 	self.ioloop.spawn_callback(self.klippy.send_request, req_)
+#	save states butttons
+def cmd_M120(params, self):
+	return "SAVE_GCODE_STATE NAME=DWC_BOTTON"
+#	restore states butttons
+def cmd_M121(params, self):
+	return "RESTORE_GCODE_STATE NAME=DWC_BOTTON MOVE=0"
+
+#	setting babysteps:
+def cmd_M290(params, self):
+
+	mm_step = float( params['Z'] )
+	command = 'SET_GCODE_OFFSET Z_ADJUST=' + str(mm_step) + ' MOVE=1'
+
+	return command
 
 #
 #
