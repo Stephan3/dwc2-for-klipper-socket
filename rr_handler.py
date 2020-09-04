@@ -18,7 +18,7 @@ class rr_handler(tornado.web.RequestHandler):
 		self.pending_requests = dwc2.pending_requests
 		configfile = self.poll_data.get('configfile', None)
 		if configfile:
-			self.sd_root = configfile['config']['virtual_sdcard']['path'][:-1]
+			self.sd_root = configfile['config']['virtual_sdcard']['path']#[:-1]
 
 	async def get(self, *args):
 
@@ -242,7 +242,6 @@ async def rr_filelist(self):
 		#		"size": os.stat(self.klipper_config).st_size ,
 		#		"date": datetime.datetime.fromtimestamp(os.stat(self.klipper_config).st_mtime).strftime("%Y-%m-%dT%H:%M:%S")
 		#	})
-
 	self.write(json.dumps(repl_))
 	#
 async def rr_gcode(self):
@@ -260,7 +259,7 @@ async def rr_gcode(self):
 		'M24': cmd_M24 ,		#	resume sdprint
 		'M25': cmd_M25 ,		#	pause print
 		'M32': cmd_M32 ,		#	Start sdprint
-		#'M98': cmd_M98 ,		#	run macro
+		'M98': cmd_M98 ,		#	run macro
 		#'M106': cmd_M106 ,		#	set fan
 		#'M120': cmd_M120 ,		#	save gcode state
 		#'M121': cmd_M121 ,		#	restore gcode state
@@ -280,7 +279,14 @@ async def rr_gcode(self):
 	req_ = self.klippy.form_request( "gcode/script", {'script': execute} )
 	self.pending_requests[req_.id] = req_
 	await self.klippy.send_request(req_)
-	res = await req_.wait(10)
+
+	try:
+		res = await req_.wait(10)
+	except Exception as e:
+		#	asume longrunning command
+		print("timeout reached with: " + str(e))
+		self.write(json.dumps(""))
+		return
 
 	if 'error' in res.keys():
 		#		bluebear will tell us
@@ -316,7 +322,8 @@ async def rr_status(self, status=0):
 
 		state = 'I'
 		stats = self.poll_data.get('print_stats', None)
-		if 'Printer is ready' != self.poll_data['webhooks']['state_message'] :
+
+		if 'Printer is ready' != self.poll_data.get('webhooks', {}).get('state_message', "Knackwurst") :
 			return 'O'
 
 		if self.poll_data['idle_timeout']['state'] == 'Printing':
@@ -552,6 +559,27 @@ def cmd_M32(params, self):
 		fullpath = file
 
 	return 'SDCARD_PRINT_FILE FILENAME=' + fullpath + '\n'
+#	start macro
+def cmd_M98(params, self):
+
+	path = self.sd_root + "/" + "/".join(params['#original'].split("/")[1:])
+
+	if not os.path.exists(path):
+		return
+		#	now we know its no macro file
+		klipma = params['#original'].split("/")[-1].replace("\"", "")
+		if klipma in self.klipper_macros:
+			return klipma
+		else:
+			return 0
+	else:
+		#	now we know its a macro from dwc
+		response = ""
+		with open( path ) as f:
+			lines = f.readlines()
+			for line in [x.strip() for x in lines]:
+				response += line + "\n"
+			return response
 #	emergency
 def cmd_M112(self):
 	req_ = self.klippy.form_request( "emergency_stop", {} )
