@@ -174,8 +174,8 @@ async def rr_download(self):
 	path = self.sd_root + self.get_argument('name').replace("0:", "")
 
 	#	ovverride for config file
-	#if "/sys/" in path and "config.g" in self.get_argument('name').replace("0:", ""):
-	#	path = self.klipper_config
+	if "/sys/" in path and "config.g" in self.get_argument('name').replace("0:", ""):
+		path = self.poll_data['info']['config_file']
 
 		#	handle heigthmap
 	#	if 'heightmap.csv' in path:
@@ -247,14 +247,14 @@ async def rr_filelist(self):
 		#		})
 
 		#	virtual config file
-		#elif "/sys" in self.get_argument('dir').replace("0:", ""):
+		if "/sys" in self.get_argument('dir').replace("0:", ""):
 
-		#	repl_['files'].append({
-		#		"type": "f",
-		#		"name": "config.g" ,
-		#		"size": os.stat(self.klipper_config).st_size ,
-		#		"date": datetime.datetime.fromtimestamp(os.stat(self.klipper_config).st_mtime).strftime("%Y-%m-%dT%H:%M:%S")
-		#	})
+			repl_['files'].append({
+				"type": "f",
+				"name": "config.g" ,
+				"size": os.stat( self.poll_data['info']['config_file'] ).st_size ,
+				"date": datetime.datetime.fromtimestamp(os.stat(self.poll_data['info']['config_file']).st_mtime).strftime("%Y-%m-%dT%H:%M:%S")
+			})
 	self.write(json.dumps(repl_))
 	#
 async def rr_gcode(self):
@@ -278,7 +278,7 @@ async def rr_gcode(self):
 		'M121': cmd_M121 ,		#	restore gcode state
 		#'M140': cmd_M140 ,		#	set bedtemp(limit to 0 mintemp)
 		'M290': cmd_M290 ,		#	set babysteps
-		#'M999': cmd_M999		#	issue restart
+		'M999': cmd_M999		#	issue restart
 	}
 	handover = ""
 	for g in gcodes:
@@ -407,7 +407,7 @@ async def rr_status(self, status=0):
 			"extr": gcode_move.get('position',[0,0,0,0])[3:]
 		},
 		"speeds": {
-			"requested": gcode_move.get('speed', 60) / 60 ,	#	speed factor?
+			"requested": gcode_move.get('speed', 60) / 60 ,	#	only last speed not current
 			"top": 	0 #	not available on klipepr
 		},
 		"currentTool": 0, #self.current_tool,	#	still not cool
@@ -424,6 +424,7 @@ async def rr_status(self, status=0):
 			"probeValue": 0,
 			"fanRPM": 0
 		},
+		"time": self.poll_data['toolhead']['print_time'] ,	#	feels wrong unsure about that value
 		"temps": {
 			#	this can be better -> will fail onprinters without a bed -> will fail on machines with more that 1 extruder
 			"bed": {
@@ -447,7 +448,6 @@ async def rr_status(self, status=0):
 				}
 			]
 		},
-		"time": self.poll_data['toolhead']['print_time'] ,	#	feels wrong unsure about that value
 		#
 		#	STATUS 2 from here
 		#
@@ -465,11 +465,14 @@ async def rr_status(self, status=0):
 		"volumes": 1,
 		"mountedVolumes": 1,
 		"name": self.poll_data['info']['hostname'],
-		"probe": {
-			"threshold": 100,
-			"height": 0,
-			"type": 8
-		},
+		#"probe": {
+		#	"threshold": 100,
+		#	"height": 0,
+		#	"type": 8
+		#},
+		}
+	#	tools extruder if there
+	response.update({
 		"tools": [
 			{
 				"number": 0,
@@ -481,7 +484,7 @@ async def rr_status(self, status=0):
 				"filament": "",
 				"offsets": [ 0, 0, 0 ]
 			} ]
-	}
+		})
 
 	if status == 3:
 		k_stats = self.poll_data.get('print_stats', {})
@@ -524,8 +527,8 @@ async def rr_upload(self):
 		os.makedirs(dir_)
 
 	#	klipper config ecxeption
-	#if "/sys/" in path and "config.g" in self.get_argument('name'):
-	#	path = self.klipper_config
+	if "/sys/" in path and "config.g" in self.get_argument('name'):
+		path = self.poll_data['info']['config_file']
 
 	with open(path.replace(" ","_"), 'w') as out:
 		out.write(self.request.body.decode('utf-8'))
@@ -624,15 +627,16 @@ def cmd_M112(self):
 	self.ioloop.spawn_callback(self.klippy.send_request, req_)
 #	save states butttons
 def cmd_M120(params, self):
-	return "SAVE_GCODE_STATE NAME=DWC_BOTTON"
+	return 'SAVE_GCODE_STATE NAME=DWC_BOTTON'
 #	restore states butttons
 def cmd_M121(params, self):
-	return "RESTORE_GCODE_STATE NAME=DWC_BOTTON MOVE=0"
-
+	return 'RESTORE_GCODE_STATE NAME=DWC_BOTTON MOVE=0'
 #	setting babysteps:
 def cmd_M290(params, self):
 	mm_step = float( params['Z'] )
 	return 'SET_GCODE_OFFSET Z_ADJUST=' + str(mm_step) + ' MOVE=1'
+def cmd_M999(params, self):
+	return 'RESTART'
 #
 #
 #
