@@ -280,7 +280,7 @@ async def rr_gcode(self):
 		'M290': cmd_M290 ,		#	set babysteps
 		#'M999': cmd_M999		#	issue restart
 	}
-
+	handover = ""
 	for g in gcodes:
 
 		params = parse_params(g)
@@ -290,25 +290,26 @@ async def rr_gcode(self):
 			func_ = rrf_commands.get(params['#command'])
 			execute = func_(params, self)
 
-		#	send request and wait for response
-		req_ = self.klippy.form_request( "gcode/script", {'script': execute} )
-		self.pending_requests[req_.id] = req_
-		await self.klippy.send_request(req_)
+		handover += execute + "\n"
 
-		try:
-			res = await req_.wait(10)
-		except Exception as e:
-			#	asume longrunning command
-			print("timeout reached with: " + str(e))
-			self.write(json.dumps(""))
-			return
+	req_ = self.klippy.form_request( "gcode/script", {'script': handover} )
+	self.pending_requests[req_.id] = req_
+	await self.klippy.send_request(req_)
 
-		if 'error' in res.keys():
-			#		bluebear will tell us
-			self.write(json.dumps(""))
-		else:
-			self.clients[self.request.remote_ip]['gcode_replys'].append("")
-			self.write(json.dumps({'buff': 1}))
+	try:
+		res = await req_.wait(7)	#	needs 7 as dwc webapp is waiting 8
+	except Exception as e:
+		#	asume longrunning command
+		print("timeout reached with: " + str(e))
+		self.write(json.dumps(""))
+		return
+
+	if 'error' in res.keys():
+		#		bluebear will tell us
+		self.write(json.dumps(""))
+	else:
+		self.clients[self.request.remote_ip]['gcode_replys'].append("")
+		self.write('{"buff": 241}')
 	return
 
 	#
@@ -395,16 +396,18 @@ async def rr_status(self, status=0):
 
 		#
 
+	gcode_move = self.poll_data.get('gcode_move', {})
+
 	response = {
 		"status": translate_status(),
 		"coords": {
 			"axesHomed": get_axes_homed(), # [1,1,1]
-			"xyz": self.poll_data['gcode_move']['position'][:3] ,	#"xyz": [144.486,26.799,18.6]
+			"xyz": gcode_move.get('position',[0,0,0,0])[:3] ,	#"xyz": [144.486,26.799,18.6]
 			"machine": [ 0, 0, 0 ],			#	what ever this is? no documentation.
-			"extr": self.poll_data['gcode_move']['position'][3:]
+			"extr": gcode_move.get('position',[0,0,0,0])[3:]
 		},
 		"speeds": {
-			"requested": self.poll_data['gcode_move']['speed'] / 60 ,	#	speed factor?
+			"requested": gcode_move.get('speed', 60) / 60 ,	#	speed factor?
 			"top": 	0 #	not available on klipepr
 		},
 		"currentTool": 0, #self.current_tool,	#	still not cool
@@ -412,9 +415,9 @@ async def rr_status(self, status=0):
 			"atxPower": 0,
 			"fanNames": [ "" ],
 			"fanPercent": [ 30 ] ,
-			"speedFactor": self.poll_data['gcode_move']['speed_factor'] * 100,
-			"extrFactors": [ self.poll_data['gcode_move']['extrude_factor'] * 100 ],
-			"babystep": self.poll_data['gcode_move']['homing_origin'][2] # homing_origin[2]
+			"speedFactor": gcode_move.get('speed_factor',1) * 100,
+			"extrFactors": [ gcode_move.get('extrude_factor',1) * 100 ],
+			"babystep": gcode_move.get('homing_origin',[0,0,0])[2]
 			},
 		"seq": len(self.clients[self.request.remote_ip]['gcode_replys']) ,
 		"sensors": {
@@ -422,13 +425,13 @@ async def rr_status(self, status=0):
 			"fanRPM": 0
 		},
 		"temps": {
+			#	this can be better -> will fail onprinters without a bed -> will fail on machines with more that 1 extruder
 			"bed": {
 				"current": self.poll_data['heater_bed']['temperature'] ,
 				"active": self.poll_data['heater_bed']['target'] ,
 				"state": 0 if self.poll_data['heater_bed']['target'] < 20 else 2 ,
 				"heater": 0
 			},
-			#	this can be better -> will fail onprinters without a bed -> will fail on machines with more that 1 extruder
 			"current": [ self.poll_data['heater_bed']['temperature'], self.poll_data['extruder']['temperature'] ] ,
 			"state": [ 0 if self.poll_data['heater_bed']['target'] < 20 else 2, 0 if self.poll_data['extruder']['target'] < 20 else 2 ] ,
 			"names": [ "Bed" ] + [ "extruder0" ] ,	#	name is 0 for a extruder 0
@@ -490,7 +493,7 @@ async def rr_status(self, status=0):
 			f_data = self.poll_data['running_file'] = await rr_fileinfo(self)
 		duration = round( k_stats.get('print_duration', 1), 3)	#	dur in secs
 		progress = round( sdcard.get('progress', 1), 3)	#	prgress fkt
-		filament_used = k_stats.get('filament_used', 1)
+		filament_used = max( k_stats.get('filament_used', 1), .1)
 		filament_togo = sum(f_data['filament']) - filament_used
 
 		response.update({
@@ -628,12 +631,8 @@ def cmd_M121(params, self):
 
 #	setting babysteps:
 def cmd_M290(params, self):
-
 	mm_step = float( params['Z'] )
-	command = 'SET_GCODE_OFFSET Z_ADJUST=' + str(mm_step) + ' MOVE=1'
-
-	return command
-
+	return 'SET_GCODE_OFFSET Z_ADJUST=' + str(mm_step) + ' MOVE=1'
 #
 #
 #
