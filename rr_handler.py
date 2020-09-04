@@ -470,22 +470,25 @@ async def rr_status(self, status=0):
 	if status == 3:
 		stats = self.poll_data.get('print_stats', {})
 		sdcard = self.poll_data.get('virtual_sdcard', {})
-		#	progress - duration
-		#	1 -x
+
+		duration = round( stats.get('print_duration', 1), 3)	#	dur in secs
+		progress = round( sdcard.get('progress', 1), 3)	#	prgress fkt
+
 		response.update({
 			"currentLayer": 0,
 			"currentLayerTime": 0,
 			"extrRaw": [ stats.get('filament_used', 0) ],
-			"fractionPrinted": sdcard.get('progress', 0),
+			"fractionPrinted": progress,
 			"filePosition": sdcard.get('file_position', 0),
 			"firstLayerDuration": 0,
 			"firstLayerHeight": 0,
-			"printDuration": stats.get('print_duration', 0),
-			"warmUpDuration": stats.get('total_duration', 0) - stats.get('print_duration', 0),
+			"printDuration": duration,
+			"warmUpDuration": stats.get('total_duration', 0) - duration,
 			"timesLeft": {
-				"file": stats.get('print_duration', 1) / max( sdcard.get('progress', 1), .0000000001), #self.print_data['tleft_file'],
-				"filament": 99, #self.print_data['tleft_filament'],
-				"layer": 99 #self.print_data['tleft_layer']
+				"file": (1-progress) * duration\
+					/ max( progress, 0.000001), #self.print_data['tleft_file'],
+				"filament": 60, #self.print_data['tleft_filament'],
+				"layer": 60 #self.print_data['tleft_layer']
 			}
 		})
 	self.write(response)
