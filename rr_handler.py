@@ -204,7 +204,10 @@ async def rr_fileinfo(self):
 		if selcted:
 			path = self.sd_root + '/' + selcted
 
-	return parse_gcode(path, self)
+	if path:
+		return parse_gcode(path, self)
+	else:
+		return {}
 async def rr_filelist(self):
 
 	path = self.sd_root + self.get_argument('dir').replace("0:", "")
@@ -360,7 +363,6 @@ async def rr_status(self, status=0):
 		q_ = self.poll_data.get('toolhead', {}).get('homed_axes', [])
 		return [ 1 if "x" in q_ else 0 , 1 if "y" in q_ else 0 , 1 if "z" in q_ else 0 ]
 
-	#
 	#	if no klippy connection there provide minimalistic dummy data
 	if not self.klippy.connected:
 		self.write(json.dumps({
@@ -412,17 +414,16 @@ async def rr_status(self, status=0):
 		},
 		"currentTool": 0, #self.current_tool,	#	still not cool
 		"params": {
-			"atxPower": 0,
+			"atxPower": -1,
 			"fanNames": [ "" ],
-			"fanPercent": [ 30 ] ,
+			"fanPercent": [ self.poll_data.get('fan', {}).get('speed', 0) ] ,
 			"speedFactor": gcode_move.get('speed_factor',1) * 100,
 			"extrFactors": [ gcode_move.get('extrude_factor',1) * 100 ],
 			"babystep": gcode_move.get('homing_origin',[0,0,0])[2]
 			},
 		"seq": len(self.clients[self.request.remote_ip]['gcode_replys']) ,
 		"sensors": {
-			"probeValue": 0,
-			"fanRPM": 0
+			"fanRPM": [ -1 ]
 		},
 		"time": self.poll_data['toolhead']['print_time'] ,	#	feels wrong unsure about that value
 		"temps": {
@@ -497,7 +498,7 @@ async def rr_status(self, status=0):
 		duration = round( k_stats.get('print_duration', 1), 3)	#	dur in secs
 		progress = round( sdcard.get('progress', 1), 3)	#	prgress fkt
 		filament_used = max( k_stats.get('filament_used', 1), .1)
-		filament_togo = sum(f_data['filament']) - filament_used
+		filament_togo = f_data.get('filament', 1) - filament_used
 
 		response.update({
 			"currentLayer": 0,
@@ -515,6 +516,7 @@ async def rr_status(self, status=0):
 				"layer": 60 #self.print_data['tleft_layer']
 			}
 		})
+
 	self.write(response)
 async def rr_upload(self):
 
