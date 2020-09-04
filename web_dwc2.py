@@ -5,6 +5,7 @@ import time
 import socket
 import tornado.web
 import rr_handler
+import os
 from tornado import gen, iostream
 from tornado.ioloop import IOLoop, PeriodicCallback
 from tornado.locks import Event
@@ -91,7 +92,7 @@ class dwc2():
 	def __init__(self):
 		self.httpserver = None
 		self.sd_root = "/root/sdcard"
-		self.web_root = "/root/sdcard/dwc2/web"
+		self.web_root = os.getcwd() + "/web"
 		self.adress = "0.0.0.0"				# string not accepted ?
 		self.port = "4700"
 
@@ -110,18 +111,19 @@ class dwc2():
 
 		def tornado_logger(req):
 			fressehaltn = []
-			fressehaltn = [ "/favicon.ico", "/rr_status?type=1", "/rr_status?type=2", "/rr_status?type=3", "/rr_config" ]
+			fressehaltn = [ "/favicon.ico", "/rr_status?type=1", "/rr_status?type=2", "/rr_status?type=3", "/rr_config", "/rr_reply" ]
 			values = [str(time.time())[-8:], req.request.remote_ip, req.request.method, req.request.uri]
 			if req.request.uri not in fressehaltn:
 				print("DWC2:" + " - ".join(values))	#	bind this to debug later
 
 		application = tornado.web.Application(
 			[
+				(r"/favicon.ico", tornado.web.StaticFileHandler, {"path": self.web_root + "/favicon.ico"}),
 				(r"/css/(.*)", tornado.web.StaticFileHandler, {"path": self.web_root + "/css/"}),
 				(r"/js/(.*)", tornado.web.StaticFileHandler, {"path": self.web_root + "/js/"}),
 				(r"/fonts/(.*)", tornado.web.StaticFileHandler, {"path": self.web_root + "/fonts/"}),
 				(r"/(rr_.*)", rr_handler.rr_handler, { "dwc2": self } ),
-				(r"/", self.MainHandler, { "web_root": self.web_root }),
+				(r"/.*", self.MainHandler, { "web_root": self.web_root }),
 			],
 			log_function=tornado_logger)
 		self.httpserver = tornado.httpserver.HTTPServer( application, max_buffer_size=250*1024*1024 )

@@ -23,6 +23,12 @@ class rr_handler(tornado.web.RequestHandler):
 	async def get(self, *args):
 
 		repl_ = None
+		if self.request.remote_ip not in self.clients.keys() and "rr_connect" not in self.request.uri and self.request.remote_ip != '127.0.0.1':
+			#	response 408 timeout to force the webif reload after klippy restarts us
+			self.clear()
+			self.set_status(408)
+			self.finish()
+			return
 
 		#	polldata fetch - curl http://127.0.0.1:4700/rr_poll_data |jq
 		if "rr_poll_data" in self.request.uri:
@@ -350,7 +356,7 @@ async def rr_status(self, status=0):
 		return state
 
 	def get_axes_homed():
-		q_ = self.poll_data['toolhead']['homed_axes']
+		q_ = self.poll_data.get('toolhead', {}).get('homed_axes', [])
 		return [ 1 if "x" in q_ else 0 , 1 if "y" in q_ else 0 , 1 if "z" in q_ else 0 ]
 
 	#
