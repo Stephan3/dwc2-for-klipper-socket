@@ -32,6 +32,10 @@ class rr_handler(tornado.web.RequestHandler):
 		if "rr_clients" in self.request.uri:
 			self.write(json.dumps(self.clients))
 			return
+		#	plopp to debug - curl http://127.0.0.1:4700/rr_entry
+		if "rr_entry" in self.request.uri:
+			import pdb; pdb.set_trace()
+			return
 		#
 		#
 		#	connection request
@@ -49,7 +53,8 @@ class rr_handler(tornado.web.RequestHandler):
 			await rr_download(self)
 			return
 		if "rr_fileinfo" in self.request.uri:
-			await rr_fileinfo(self)
+			repl_ = await rr_fileinfo(self)
+			self.write(repl_)
 			return
 		#	filehandling - dirlisting
 		if "rr_filelist" in self.request.uri:
@@ -188,10 +193,12 @@ async def rr_fileinfo(self):
 	try:
 		path = self.sd_root + self.get_argument('name').replace("0:", "")
 	except:
+		#	happens if we sart midprint
 		selcted = self.poll_data['print_stats']['filename']
 		if selcted:
 			path = self.sd_root + '/' + selcted
-	self.write(parse_gcode(path, self))
+
+	return parse_gcode(path, self)
 async def rr_filelist(self):
 
 	path = self.sd_root + self.get_argument('dir').replace("0:", "")
@@ -468,26 +475,31 @@ async def rr_status(self, status=0):
 	}
 
 	if status == 3:
-		stats = self.poll_data.get('print_stats', {})
+		k_stats = self.poll_data.get('print_stats', {})
 		sdcard = self.poll_data.get('virtual_sdcard', {})
 
-		duration = round( stats.get('print_duration', 1), 3)	#	dur in secs
+		try:
+			f_data = self.poll_data['running_file']
+		except Exception as e:
+			f_data = self.poll_data['running_file'] = await rr_fileinfo(self)
+		duration = round( k_stats.get('print_duration', 1), 3)	#	dur in secs
 		progress = round( sdcard.get('progress', 1), 3)	#	prgress fkt
+		filament_used = k_stats.get('filament_used', 1)
+		filament_togo = sum(f_data['filament']) - filament_used
 
 		response.update({
 			"currentLayer": 0,
 			"currentLayerTime": 0,
-			"extrRaw": [ stats.get('filament_used', 0) ],
+			"extrRaw": [ filament_used ],
 			"fractionPrinted": progress,
 			"filePosition": sdcard.get('file_position', 0),
 			"firstLayerDuration": 0,
-			"firstLayerHeight": 0,
+			"firstLayerHeight": f_data.get('firstLayerHeight', 0),
 			"printDuration": duration,
-			"warmUpDuration": stats.get('total_duration', 0) - duration,
+			"warmUpDuration": k_stats.get('total_duration', 0) - duration,
 			"timesLeft": {
-				"file": (1-progress) * duration\
-					/ max( progress, 0.000001), #self.print_data['tleft_file'],
-				"filament": 60, #self.print_data['tleft_filament'],
+				"file": (1-progress) * duration / max( progress, 0.000001),
+				"filament": filament_togo * duration / filament_used,
 				"layer": 60 #self.print_data['tleft_layer']
 			}
 		})
