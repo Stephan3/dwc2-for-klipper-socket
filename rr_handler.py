@@ -655,7 +655,7 @@ def parse_gcode(path, self):
 				'object_h': 'G1\sZ\d*\.\d*',								#	get the highest knowing z
 				'first_h': '; first_layer_height = \d.\d+',					#	its there
 				'layer_h': '; layer_height = \d.\d+',						#	its there
-				'duration': '; estimated printing time.*(\d+d\s)?(\d+h\s)?(\d+m\s)(\d+s)',			#	its there 		update: 03-09-2020
+				'duration': '; estimated printing time.*(\d+d\s)?(\d+h\s)?(\d+m\s)?(\d+s)',			#	its there 		update: 03-09-2020
 				'filament': '; filament\sused\s.mm.\s=\s[0-9\.]+'			#	its there
 			}
 	}
@@ -720,7 +720,6 @@ def parse_gcode(path, self):
 			- metadata.get("first_h",-1) ) / float(metadata.get("layer_h",-1) ) + 1 ,
 		"err": 0
 	}
-	#import pdb; pdb.set_trace()
 	return response
 def parse_params(line):
 	args_r = re.compile('([A-Z_]+|[A-Z*/])')
