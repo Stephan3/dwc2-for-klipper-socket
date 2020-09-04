@@ -268,32 +268,34 @@ async def rr_gcode(self):
 		#'M999': cmd_M999		#	issue restart
 	}
 
-	params = parse_params(gcodes.pop(0))
-	execute = params['#original']
+	for g in gcodes:
 
-	if params['#command'] in rrf_commands.keys():
-		func_ = rrf_commands.get(params['#command'])
-		execute = func_(params, self)
+		params = parse_params(g)
+		execute = params['#original']
 
-	#	send request and wait for response
-	req_ = self.klippy.form_request( "gcode/script", {'script': execute} )
-	self.pending_requests[req_.id] = req_
-	await self.klippy.send_request(req_)
+		if params['#command'] in rrf_commands.keys():
+			func_ = rrf_commands.get(params['#command'])
+			execute = func_(params, self)
 
-	try:
-		res = await req_.wait(10)
-	except Exception as e:
-		#	asume longrunning command
-		print("timeout reached with: " + str(e))
-		self.write(json.dumps(""))
-		return
+		#	send request and wait for response
+		req_ = self.klippy.form_request( "gcode/script", {'script': execute} )
+		self.pending_requests[req_.id] = req_
+		await self.klippy.send_request(req_)
 
-	if 'error' in res.keys():
-		#		bluebear will tell us
-		self.write(json.dumps(""))
-	else:
-		self.clients[self.request.remote_ip]['gcode_replys'].append("")
-		self.write(json.dumps({'buff': 1}))
+		try:
+			res = await req_.wait(10)
+		except Exception as e:
+			#	asume longrunning command
+			print("timeout reached with: " + str(e))
+			self.write(json.dumps(""))
+			return
+
+		if 'error' in res.keys():
+			#		bluebear will tell us
+			self.write(json.dumps(""))
+		else:
+			self.clients[self.request.remote_ip]['gcode_replys'].append("")
+			self.write(json.dumps({'buff': 1}))
 	return
 
 	#
@@ -647,9 +649,9 @@ def parse_gcode(path, self):
 		}
 		dursecs = 0
 		for key, value in dimensions.items():
-			extr = re.search(re.compile(key),in_).group()
+			extr = re.search(re.compile(key),in_)
 			if extr:
-				dursecs += int(re.sub('[a-z]|[A-Z]', '', extr)) * value
+				dursecs += int(re.sub('[a-z]|[A-Z]', '', extr.group())) * value
 
 		return dursecs
 
