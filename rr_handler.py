@@ -1,6 +1,6 @@
-#
 
 import tornado.web
+from tornado.ioloop import IOLoop
 import json
 import time
 import os, shutil
@@ -30,6 +30,9 @@ class rr_handler(tornado.web.RequestHandler):
 			self.finish()
 			return
 
+		if self.request.remote_ip in self.clients.keys():
+			self.clients[self.request.remote_ip]['last_seen'] = time.time()
+
 		#	polldata fetch - curl http://127.0.0.1:4700/rr_poll_data |jq
 		if "rr_poll_data" in self.request.uri:
 			self.write(json.dumps(self.poll_data))
@@ -54,6 +57,9 @@ class rr_handler(tornado.web.RequestHandler):
 			return
 		if "rr_delete" in self.request.uri:
 			await rr_delete(self)
+			return
+		if "rr_disconnect" in self.request.uri:
+			await rr_disconnect(self)
 			return
 		if "rr_download" in self.request.uri:
 			await rr_download(self)
@@ -107,6 +113,8 @@ async def rr_connect(self):
 			"gcode_replys": [] ,
 			"gcode_command": {}
 		}
+		io_loop = IOLoop.current()
+		io_loop.call_later(600, clear_client, self.request.remote_ip, self)
 
 	self.write(json.dumps({
 		"err":0,
@@ -169,6 +177,8 @@ async def rr_delete(self):
 		os.remove(path_)
 
 	self.write({'err': 0})
+async def rr_disconnect(self):
+	self.clients.pop(self.request.remote_ip, None)
 async def rr_download(self):
 
 	path = self.sd_root + self.get_argument('name').replace("0:", "")
@@ -644,7 +654,11 @@ def cmd_M999(params, self):
 #
 #
 #
-
+def clear_client(client_ip, self):
+	if time.time() - self.clients.get(self.request.remote_ip, {}).get('last_seen', 0) > 1800:
+		self.clients.pop(self.request.remote_ip, None)
+	else:
+		self.ioloop.call_later(600, clear_client, client_ip, self)
 def parse_gcode(path, self):
 	slicers = {
 		'Cura':
