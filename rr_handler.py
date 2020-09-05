@@ -317,12 +317,14 @@ async def rr_gcode(self):
 
 	#
 async def rr_reply(self):
+	output = ""
 	try:
-		item = self.clients[self.request.remote_ip]['gcode_replys'].pop(0).replace("!!", "Error: ").replace("//", "Warning: ")
+		while self.clients[self.request.remote_ip]['gcode_replys']:
+			output += self.clients[self.request.remote_ip]['gcode_replys'].pop(0).replace("!!", "Error: ").replace("//", "Warning: ") + "\n"
 	except:
 		pass
 	else:
-		self.write(item)
+		self.write(output)
 async def rr_status(self, status=0):
 
 	def translate_status():
