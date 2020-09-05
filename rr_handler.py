@@ -656,7 +656,7 @@ def parse_gcode(path, self):
 			},
 		'SuperSlicer':
 			{
-				'name': 'SuperSlicer',										#	somewhere in the first lines
+				'name': 'SuperSlicer\s\d+.\d+.\d+',							#	somewhere in the first lines
 				'object_h': 'G1\sZ\d*\.\d*',								#	get the highest knowing z
 				'first_h': '; first_layer_height = \d.\d+',					#	its there
 				'layer_h': '; layer_height = \d.\d+',						#	its there
