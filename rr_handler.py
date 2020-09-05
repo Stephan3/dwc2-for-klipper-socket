@@ -466,11 +466,11 @@ async def rr_status(self, status=0):
 		"volumes": 1,
 		"mountedVolumes": 1,
 		"name": self.poll_data['info']['hostname'],
-		#"probe": {
-		#	"threshold": 100,
-		#	"height": 0,
-		#	"type": 8
-		#},
+		"probe": {
+			"threshold": 100,
+			"height": 0,
+			"type": 8
+		},
 		}
 	#	tools extruder if there
 	response.update({
@@ -498,7 +498,7 @@ async def rr_status(self, status=0):
 		duration = round( k_stats.get('print_duration', 1), 3)	#	dur in secs
 		progress = round( sdcard.get('progress', 1), 3)	#	prgress fkt
 		filament_used = max( k_stats.get('filament_used', 1), .1)
-		filament_togo = f_data.get('filament', 1) - filament_used
+		filament_togo = sum(f_data.get('filament', [1])) - filament_used
 
 		response.update({
 			"currentLayer": 0,
