@@ -92,7 +92,7 @@ class dwc2():
 	def __init__(self):
 		self.httpserver = None
 		self.sd_root = "/root/sdcard"
-		self.web_root = os.getcwd() + "/web"
+		self.web_root = os.path.dirname(os.path.abspath(__file__)) + "/web"
 		self.adress = "0.0.0.0"				# string not accepted ?
 		self.port = "4700"
 
