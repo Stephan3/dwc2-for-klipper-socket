@@ -196,14 +196,14 @@ class dwc2():
 			self.web_root = web_root
 
 		async def get(self):
-			#self.render( self.web_root + "/index.html" )
-			if self.request.uri == "/":
-				self.render( self.web_root + "/index.html" )
 
 			if os.path.isfile(self.web_root + self.request.uri):
 				with open(self.web_root + self.request.uri, "rb") as f:
 					self.write( f.read() )
 					self.finish()
+					return
+
+			self.render( self.web_root + "/index.html" )
 
 	#
 	#

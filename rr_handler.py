@@ -289,6 +289,7 @@ async def rr_gcode(self):
 		'M120': cmd_M120 ,		#	save gcode state
 		'M121': cmd_M121 ,		#	restore gcode state
 		#'M140': cmd_M140 ,		#	set bedtemp(limit to 0 mintemp)
+		'M141': cmd_M141 ,
 		'M290': cmd_M290 ,		#	set babysteps
 		'M999': cmd_M999		#	issue restart
 	}
@@ -453,12 +454,7 @@ async def rr_status(self, status=0):
 				"standby": [ [ 0 ] ]
 			},
 			#	for loop that gives extrasensors available?
-			"extra": [
-				{
-					"name": "*MCU",
-					"temp": 0
-				}
-			]
+			"extra": []
 		},
 		#
 		#	STATUS 2 from here
@@ -497,6 +493,31 @@ async def rr_status(self, status=0):
 				"offsets": [ 0, 0, 0 ]
 			} ]
 		})
+
+	#	fetch temperarutere fans
+	for key in self.poll_data.keys():
+		if key.startswith('temperature_fan'):
+			#	chamber is this you?
+			if key.endswith('chamber'):
+				state = 0
+				if self.poll_data[key]['target'] > 0 : state = 2
+				if self.poll_data[key]['speed'] > 0 : state = 1
+				response['temps'].update({
+					"chamber": {
+						"current": self.poll_data[key]['temperature'] ,
+						"active": self.poll_data[key]['target'] ,
+						"state": state ,
+						"heater": 2 ,	#	extruders + bett ?
+					},
+					"current": response['temps']['current'] + [ self.poll_data[key]['temperature'] ],
+					"state": response['temps']['state'] + [ state ] ,
+					"names": response['temps']['names'] + [ "chamber" ] ,
+					})
+				response['temps']['extra'].append({ 'name': 'tf_chamber speed',
+												'temp': self.poll_data[key]['speed']*100 })
+			else:
+				response['temps']['extra'].append({ 'name': key,
+												'temp': self.poll_data[key]['temperature'] })
 
 	if status == 3:
 		k_stats = self.poll_data.get('print_stats', {})
@@ -644,6 +665,9 @@ def cmd_M120(params, self):
 #	restore states butttons
 def cmd_M121(params, self):
 	return 'RESTORE_GCODE_STATE NAME=DWC_BOTTON MOVE=0'
+def cmd_M141(params, self):
+	target = int( params['S'] )
+	return 'SET_TEMPERATURE_FAN_TARGET temperature_fan=chamber target=' + str(target)
 #	setting babysteps:
 def cmd_M290(params, self):
 	mm_step = float( params['Z'] )
