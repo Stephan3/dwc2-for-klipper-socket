@@ -16,6 +16,7 @@ class rr_handler(tornado.web.RequestHandler):
 		self.klippy = dwc2.klippy
 		self.ioloop = dwc2.ioloop
 		self.pending_requests = dwc2.pending_requests
+		self.init_done = dwc2.init_done
 
 	async def get(self, *args):
 
@@ -122,7 +123,7 @@ async def rr_connect(self):
 	#
 async def rr_config(self):
 
-	if not self.klippy.connected:
+	if not self.klippy.connected or not self.init_done:
 		self.write(json.dumps({
 			"axisMins": [],
 			"axisMaxes": [],
@@ -229,7 +230,8 @@ async def rr_filelist(self):
 
 	#	if rrf is requesting directory, it has to be there.
 	if not os.path.exists(path):
-		os.makedirs(path)
+		return
+		#os.makedirs(path)
 
 	#	whitespace uploads via nfs/samba
 	for file in os.listdir(path):
@@ -373,7 +375,7 @@ async def rr_status(self, status=0):
 		return [ 1 if "x" in q_ else 0 , 1 if "y" in q_ else 0 , 1 if "z" in q_ else 0 ]
 
 	#	if no klippy connection there provide minimalistic dummy data
-	if not self.klippy.connected:
+	if not self.klippy.connected or not self.init_done:
 		self.write(json.dumps({
 			"status": "O",
 			"seq": len(self.clients[self.request.remote_ip]['gcode_replys']) ,
@@ -434,7 +436,7 @@ async def rr_status(self, status=0):
 		"sensors": {
 			"fanRPM": [ -1 ]
 		},
-		"time": self.poll_data['toolhead']['print_time'] ,	#	feels wrong unsure about that value
+		"time": self.poll_data.get('toolhead', {}).get('print_time', 0) ,	#	feels wrong unsure about that value
 		"temps": {
 			#	this can be better -> will fail onprinters without a bed -> will fail on machines with more that 1 extruder
 			"bed": {

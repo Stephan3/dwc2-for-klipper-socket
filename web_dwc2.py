@@ -91,7 +91,7 @@ class klippy_uplink(object):
 class dwc2():
 	def __init__(self):
 		self.httpserver = None
-		self.sd_root = None
+		self.sd_root = ""
 		self.web_root = os.path.dirname(os.path.abspath(__file__)) + "/web"
 		self.adress = "0.0.0.0"				# string not accepted ?
 		self.port = "4700"
@@ -100,7 +100,8 @@ class dwc2():
 		self.pending_requests = {}
 		self.clients = {}
 		self.poll_data = {}
-		self.file_infos ={}
+		self.file_infos = {}
+		self.init_done = False
 
 		self.ioloop = IOLoop.current()
 
@@ -118,7 +119,6 @@ class dwc2():
 
 		application = tornado.web.Application(
 			[
-				(r"/favicon.ico", tornado.web.StaticFileHandler, {"path": self.web_root + "/favicon.ico"}),
 				(r"/css/(.*)", tornado.web.StaticFileHandler, {"path": self.web_root + "/css/"}),
 				(r"/js/(.*)", tornado.web.StaticFileHandler, {"path": self.web_root + "/js/"}),
 				(r"/fonts/(.*)", tornado.web.StaticFileHandler, {"path": self.web_root + "/fonts/"}),
@@ -132,6 +132,7 @@ class dwc2():
 
 	def connection_lost(self):
 		self.klippy.connected = False
+		self.init_done = False
 		self.ioloop.spawn_callback( self.init_ )
 
 	async def init_(self):
@@ -165,6 +166,7 @@ class dwc2():
 		configfile = self.poll_data.get('configfile', None)
 		if configfile:
 			self.sd_root = configfile['config']['virtual_sdcard']['path']
+		self.init_done = True
 	def process_klippy_response(self, out_):
 		#print("GOT: \t" + json.dumps(out_))
 		#	poll of incomming things, once they change
@@ -193,8 +195,15 @@ class dwc2():
 		def initialize(self, web_root):
 			self.web_root = web_root
 
-		def get(self):
-			self.render( self.web_root + "/index.html" )
+		async def get(self):
+			#self.render( self.web_root + "/index.html" )
+			if self.request.uri == "/":
+				self.render( self.web_root + "/index.html" )
+
+			if os.path.isfile(self.web_root + self.request.uri):
+				with open(self.web_root + self.request.uri, "rb") as f:
+					self.write( f.read() )
+					self.finish()
 
 	#
 	#
