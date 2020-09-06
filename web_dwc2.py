@@ -91,7 +91,7 @@ class klippy_uplink(object):
 class dwc2():
 	def __init__(self):
 		self.httpserver = None
-		self.sd_root = "/root/sdcard"
+		self.sd_root = None
 		self.web_root = os.path.dirname(os.path.abspath(__file__)) + "/web"
 		self.adress = "0.0.0.0"				# string not accepted ?
 		self.port = "4700"
@@ -161,7 +161,10 @@ class dwc2():
 		objects_init = await req_.wait(10)
 		for key in objects_init['result']['status']:
 			self.poll_data[key] = objects_init['result']['status'][key]
-
+		#	pick from config.
+		configfile = self.poll_data.get('configfile', None)
+		if configfile:
+			self.sd_root = configfile['config']['virtual_sdcard']['path']
 	def process_klippy_response(self, out_):
 		#print("GOT: \t" + json.dumps(out_))
 		#	poll of incomming things, once they change

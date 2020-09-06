@@ -16,9 +16,6 @@ class rr_handler(tornado.web.RequestHandler):
 		self.klippy = dwc2.klippy
 		self.ioloop = dwc2.ioloop
 		self.pending_requests = dwc2.pending_requests
-		configfile = self.poll_data.get('configfile', None)
-		if configfile:
-			self.sd_root = configfile['config']['virtual_sdcard']['path']#[:-1]
 
 	async def get(self, *args):
 
