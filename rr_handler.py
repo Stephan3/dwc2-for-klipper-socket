@@ -187,13 +187,13 @@ async def rr_download(self):
 	if "/sys/" in path and "config.g" in self.get_argument('name').replace("0:", ""):
 		path = self.poll_data['info']['config_file']
 
-		#	handle heigthmap
-	#	if 'heightmap.csv' in path:
-	#		repl_ = self.get_heigthmap()
-	##		if repl_:
-	#			with open(path, "w") as f:
-	#				for line in repl_:
-	#					f.write( line + '\n')
+	#	handle heigthmap
+	if 'heightmap.csv' in path:
+		repl_ = get_heigthmap(self)
+		if repl_:
+			with open(path, "w") as f:
+				for line in repl_:
+					f.write( line + '\n')
 
 	if os.path.isfile(path):
 
@@ -654,6 +654,55 @@ def cmd_M999(params, self):
 #
 #
 #
+
+def get_heigthmap(self):
+	def calc_mean(matrix_):
+
+		matrix_tolist = []
+		for line in matrix_:
+			matrix_tolist += line
+
+		return float(sum(matrix_tolist)) / len(matrix_tolist)
+
+	def calc_stdv(matrix_):
+		from statistics import stdev
+
+		matrix_tolist = []
+		for line in matrix_:
+			matrix_tolist += line
+
+		return stdev(matrix_tolist)
+
+		#
+
+	bed_mesh = self.poll_data.get('bed_mesh', {})
+
+	if bed_mesh.get('probed_matrix', None):
+		hmap = []
+		#z_matrix = bed_mesh.mesh_matrix
+		z_matrix = bed_mesh['probed_matrix']
+		mesh_data = bed_mesh				#	see def print_mesh in bed_mesh.py line 572
+
+		meane_ = round( calc_mean(z_matrix), 3)
+		stdev_ = round( calc_stdv(z_matrix) , 3)
+
+		hmap.append( 'RepRapFirmware height map file v2 generated at ' + str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M')) + ', mean error ' + str(meane_) + ', deviation ' + str(stdev_))
+		hmap.append('xmin,xmax,ymin,ymax,radius,xspacing,yspacing,xnum,ynum')
+		xspace_ = ( mesh_data['mesh_max'][0] - mesh_data['mesh_min'][0] ) /  len(z_matrix[0])
+		yspace_ = ( mesh_data['mesh_max'][1] - mesh_data['mesh_min'][1] ) / len(z_matrix)
+		hmap.append( str(mesh_data['mesh_min'][0]) + ',' + str(mesh_data['mesh_max'][0]) + ',' + str(mesh_data['mesh_min'][1]) + ',' + str(mesh_data['mesh_max'][1]) + \
+			',-1.00,' + str(xspace_) + ',' + str(yspace_) + ',' + str( len(z_matrix[0])) + ',' + str(len(z_matrix)) )
+
+		for line in z_matrix:
+			read_by_offset = map(lambda x: x-meane_,line)
+			read = map(lambda x: x-meane_,line)
+			hmap.append( '  ' + ',  '.join( map(str, read) ))
+
+		return hmap
+
+	else:
+		self.clients[self.request.remote_ip]['gcode_replys'].append("Bed has not been probed")
+		return
 def clear_client(client_ip, self):
 	if time.time() - self.clients.get(self.request.remote_ip, {}).get('last_seen', 0) > 1800:
 		self.clients.pop(self.request.remote_ip, None)
