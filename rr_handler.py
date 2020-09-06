@@ -461,11 +461,11 @@ async def rr_status(self, status=0):
 		#
 		#	STATUS 2 from here
 		#
-		"coldExtrudeTemp": int(self.poll_data['configfile']['config']['extruder']['min_extrude_temp']) ,
-		"coldRetractTemp": int(self.poll_data['configfile']['config']['extruder']['min_extrude_temp']) ,
+		"coldExtrudeTemp": int(self.poll_data['configfile']['config'].get('extruder', {}).get('min_extrude_temp', 170)) ,
+		"coldRetractTemp": int(self.poll_data['configfile']['config'].get('extruder', {}).get('min_extrude_temp', 170)) ,
 		"compensation": "None",
 		"controllableFans": 1,		#	not cool
-		"tempLimit": int(self.poll_data['configfile']['config']['extruder']['max_temp']) ,
+		"tempLimit": int(self.poll_data['configfile']['config'].get('extruder', {}).get('max_temp', 280)) ,
 		"endstops": 4088,	#	what does this do?
 		"firmwareName": "Klipper",
 		"geometry": self.poll_data['configfile']['config']['printer']['kinematics'],
