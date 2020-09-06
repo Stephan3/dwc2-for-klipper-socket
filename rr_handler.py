@@ -419,7 +419,7 @@ async def rr_status(self, status=0):
 		},
 		"speeds": {
 			"requested": gcode_move.get('speed', 60) / 60 ,	#	only last speed not current
-			"top": 	0 #	not available on klipepr
+			"top": 	gcode_move.get('speed', 60) / 60 * gcode_move.get('speed_factor', 1) #	not available on klipepr
 		},
 		"currentTool": 0, #self.current_tool,	#	still not cool
 		"params": {
