@@ -74,6 +74,14 @@ class rr_handler(tornado.web.RequestHandler):
 		if "rr_gcode" in self.request.uri:
 			await rr_gcode(self)
 			return
+		#	creating directories
+		if "rr_mkdir" in self.request.uri:
+			await rr_mkdir(self)
+			return
+		#	moving files/dirs
+		if "rr_move" in self.request.uri:
+			await rr_move(self)
+			return
 		#	sending reply to gcodes
 		if "rr_reply" in self.request.uri:
 			await rr_reply(self)
@@ -165,7 +173,10 @@ async def rr_config(self):
 	}))
 	#
 async def rr_delete(self):
-	#	lazymode_
+	if not self.sd_root:
+		self.write({'err': 1})
+		return
+
 	path_ = self.sd_root + self.get_argument('name').replace("0:", "")
 
 	if os.path.isdir(path_):
@@ -178,17 +189,20 @@ async def rr_delete(self):
 async def rr_disconnect(self):
 	self.clients.pop(self.request.remote_ip, None)
 async def rr_download(self):
-
-	path = self.sd_root + self.get_argument('name').replace("0:", "")
+	
+	if self.sd_root:
+		path = self.sd_root + self.get_argument('name').replace("0:", "")
+	else:
+		path = None
 
 	#	ovverride for config file
-	if "/sys/" in path and "config.g" in self.get_argument('name').replace("0:", ""):
+	if "config.g" in self.get_argument('name').replace("0:", ""):
 		path = self.poll_data['info']['config_file']
 
 	#	handle heigthmap
 	if 'heightmap.csv' in path:
 		repl_ = get_heigthmap(self)
-		if repl_:
+		if repl_ and path:
 			with open(path, "w") as f:
 				for line in repl_:
 					f.write( line + '\n')
@@ -201,6 +215,9 @@ async def rr_download(self):
 		with open(path, "rb") as f:
 			self.write( f.read() )
 async def rr_fileinfo(self):
+	if not self.sd_root:
+		self.write({'err': 1})
+		return
 
 	path = None
 
@@ -218,20 +235,39 @@ async def rr_fileinfo(self):
 		return {}
 async def rr_filelist(self):
 
-	path = self.sd_root + self.get_argument('dir').replace("0:", "")
+	directory = self.get_argument('dir', self.poll_data['last_path'])
 
 	#	creating the infoblock
-	repl_ = {
-		"dir": self.get_argument('dir') ,
+	response = {
+		"dir": directory ,
 		"first": self.get_argument('first', 0) ,
 		"files": [] ,
-		"next": 0
+		"next": 0 ,
+		"err": 0
 	}
+
+	#	virtual config file
+	if "/sys" in directory.replace("0:", ""):
+		response['files'].append({
+			"type": "f",
+			"name": "config.g" ,
+			"size": 1 ,
+			"date": datetime.datetime.fromtimestamp(os.stat(self.poll_data.get('info',{}).get('config_file',1)).st_mtime).strftime("%Y-%m-%dT%H:%M:%S")
+		})
+
+	if not self.sd_root:
+		if "/sys" in directory.replace("0:", ""):
+			self.write(json.dumps(response))
+		else:
+			self.write(json.dumps({'err':1}))
+			self.clients[self.request.remote_ip]['gcode_replys'].append("Error: Can´t detect virtual sdcard.")
+		return
+
+	path = self.sd_root + directory.replace("0:", "")
 
 	#	if rrf is requesting directory, it has to be there.
 	if not os.path.exists(path):
-		return
-		#os.makedirs(path)
+		os.makedirs(path)
 
 	#	whitespace uploads via nfs/samba
 	for file in os.listdir(path):
@@ -240,7 +276,7 @@ async def rr_filelist(self):
 	#	append elements to files list matching rrf syntax
 	for el_ in os.listdir(path):
 		el_path = path + "/" + str(el_)
-		repl_['files'].append({
+		response['files'].append({
 			"type": "d" if os.path.isdir(el_path) else "f" ,
 			"name": str(el_) ,
 			"size": os.stat(el_path).st_size ,
@@ -251,7 +287,7 @@ async def rr_filelist(self):
 		#if "/macros" in self.get_argument('dir').replace("0:", ""):
 		#	for macro_ in self.klipper_macros:
 
-		#		repl_['files'].append({
+		#		response['files'].append({
 		#			"type": "f" ,
 		#			"name": macro_ ,
 		#			"size": 1 ,
@@ -259,15 +295,8 @@ async def rr_filelist(self):
 		#		})
 
 		#	virtual config file
-		if "/sys" in self.get_argument('dir').replace("0:", ""):
-
-			repl_['files'].append({
-				"type": "f",
-				"name": "config.g" ,
-				"size": os.stat( self.poll_data['info']['config_file'] ).st_size ,
-				"date": datetime.datetime.fromtimestamp(os.stat(self.poll_data['info']['config_file']).st_mtime).strftime("%Y-%m-%dT%H:%M:%S")
-			})
-	self.write(json.dumps(repl_))
+	self.poll_data['last_path'] = path
+	self.write(json.dumps(response))
 	#
 async def rr_gcode(self):
 
@@ -276,7 +305,7 @@ async def rr_gcode(self):
 	#	Handle emergencys - just do it now
 	for code in gcodes:
 		if 'M112' in code:
-			cmd_M112()
+			cmd_M112(self)
 
 	rrf_commands = {
 		'G10': cmd_G10 ,		#	set heaters temp
@@ -326,6 +355,24 @@ async def rr_gcode(self):
 	return
 
 	#
+async def rr_mkdir(self):
+	path = self.sd_root + self.get_argument('dir').replace("0:", "").replace(' ', '_')
+	if not os.path.exists(path):
+		os.makedirs(path)
+		return await rr_filelist(self)
+	return {'err': 1}
+async def rr_move(self):
+	if "/sys/" in self.get_argument('old').replace("0:", "") and "config.g" in self.get_argument('old').replace("0:", ""):
+		src_ = self.klipper_config
+		dst_ = self.klipper_config + ".backup"
+	else:
+		src_ = self.sd_root + self.get_argument('old').replace("0:", "")
+		dst_ = self.sd_root + self.get_argument('new').replace("0:", "")
+	try:
+		shutil.move( src_ , dst_)
+	except Exception as e:
+		return {"err": 1}
+	return await rr_filelist(self)
 async def rr_reply(self):
 	output = ""
 	try:
@@ -552,17 +599,18 @@ async def rr_status(self, status=0):
 	self.write(response)
 async def rr_upload(self):
 
-	path = self.sd_root + self.get_argument('name').replace("0:", "").replace(' ', '_')
-	dir_ = os.path.dirname(path)
-
 	ret_ = {"err":1}
+	if self.sd_root:
+		path = self.sd_root + self.get_argument('name').replace("0:", "").replace(' ', '_')
+	else:
+		path = None
 
+	if "config.g" in self.get_argument('name'):
+		path = self.poll_data['info']['config_file']
+
+	dir_ = os.path.dirname(path)
 	if not os.path.exists(dir_):
 		os.makedirs(dir_)
-
-	#	klipper config ecxeption
-	if "/sys/" in path and "config.g" in self.get_argument('name'):
-		path = self.poll_data['info']['config_file']
 
 	with open(path.replace(" ","_"), 'w') as out:
 		out.write(self.request.body.decode('utf-8'))
@@ -580,36 +628,26 @@ def cmd_G10(params, self):
 	return str("M104 T%d S%0.2f" % ( int(params['P']), int(params['S']) ) )
 #	rrf M0 - cancel print from sd
 def cmd_M0(params, self):
-	return "SDCARD_RESET_FILE"
+	response = "SDCARD_RESET_FILE"
+	path = self.sd_root + "/macros/print/resume.g"
+	response += rrf_macro(path)
+	return response
 # 	rrf M24 - start/resume print from sdcard
 def cmd_M24(params, self):
-		if self.poll_data['virtual_sdcard']['file_position']> 0:
-			pass
-			#	resume macro
-		else:
-			self.print_data = {
-				"print_start": time.time() ,
-				"print_dur": 0 ,
-				"extr_start": sum(self.poll_data['gcode_move']['position'][3:]) ,
-				"firstlayer_dur": 0 ,
-				"curr_layer": 1 ,
-				"curr_layer_start": 0 ,
-				"curr_layer_dur" : 0 ,
-				"heat_time": 0 ,
-				"last_zposes": [ self.poll_data['gcode_move']['position'][3] for n_ in range(10) ] ,
-				"last_switch_z": 0,
-				"tleft_file": 99999999999,
-				"tleft_filament": 99999999999,
-				"tleft_layer": 99999999999,
-				"layercount": 0, #self.file_infos.get('running_file', {}).get('layercount', 1),
-				"filament": 0, #self.file_infos.get('running_file', {}).get( "filament", 1)
-			}
-			#self.reactor.register_callback(self.update_printdata, waketime=self.reactor.monotonic() + 2)
-		return 'M24\n'
+	response = 'M24\n'
+	#	rrf resume macro
+	if self.poll_data['virtual_sdcard']['file_position']> 0:
+		path = self.sd_root + "/macros/print/resume.g"
+		response += rrf_macro(path)
+	return response
 #	rrf M25 - pause print
 def cmd_M25(params, self):
+	response = 'M25\n'
 	self.poll_data['pausing'] = True
-	return 'M25'
+	#	rrf pause macro:
+	path = self.sd_root + "/macros/print/pause.g"
+	response += rrf_macro(path)
+	return response
 #	rrf M32 - start print from sdcard
 def cmd_M32(params, self):
 
@@ -636,13 +674,7 @@ def cmd_M98(params, self):
 		else:
 			return 0
 	else:
-		#	now we know its a macro from dwc
-		response = ""
-		with open( path ) as f:
-			lines = f.readlines()
-			for line in [x.strip() for x in lines]:
-				response += line + "\n"
-			return response
+		return rrf_macro(path)
 #	rrf M106 translation to klipper scale
 def cmd_M106(params, self):
 
@@ -836,3 +868,11 @@ def parse_params(line):
 	params['#command'] = parts[1] + parts[2].strip()
 
 	return params
+def rrf_macro(path):
+	response = ""
+	if os.path.exists(path):
+		with open( path ) as f:
+			lines = f.readlines()
+			for line in [x.strip() for x in lines]:
+				response += line + "\n"
+	return response

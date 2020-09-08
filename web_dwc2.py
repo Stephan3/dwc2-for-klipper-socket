@@ -91,7 +91,7 @@ class klippy_uplink(object):
 class dwc2():
 	def __init__(self):
 		self.httpserver = None
-		self.sd_root = ""
+		self.sd_root = None
 		self.web_root = os.path.dirname(os.path.abspath(__file__)) + "/web"
 		self.adress = "0.0.0.0"				# string not accepted ?
 		self.port = "4700"
@@ -100,7 +100,7 @@ class dwc2():
 		self.pending_requests = {}
 		self.clients = {}
 		self.poll_data = {}
-		self.file_infos = {}
+		self.poll_data['last_path'] = None
 		self.init_done = False
 
 		self.ioloop = IOLoop.current()
@@ -143,6 +143,7 @@ class dwc2():
 			return
 
 		self.poll_data = {}
+		self.poll_data['last_path'] = None
 
 		l_ = { "gcode/help": {}, "info": {}, "objects/list": {}, "list_endpoints": {}, "gcode/subscribe_output": { "response_template": {"DWC_2": "dwc2_subscription_to_gcode_replys"} } }
 		for item in l_.keys():
@@ -165,7 +166,7 @@ class dwc2():
 		#	pick from config.
 		configfile = self.poll_data.get('configfile', None)
 		if configfile:
-			self.sd_root = configfile['config']['virtual_sdcard']['path']
+			self.sd_root = configfile.get('config',{}).get('virtual_sdcard',{}).get('path', None)
 		self.init_done = True
 	def process_klippy_response(self, out_):
 		#print("GOT: \t" + json.dumps(out_))
