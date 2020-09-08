@@ -189,7 +189,7 @@ async def rr_delete(self):
 async def rr_disconnect(self):
 	self.clients.pop(self.request.remote_ip, None)
 async def rr_download(self):
-	
+
 	if self.sd_root:
 		path = self.sd_root + self.get_argument('name').replace("0:", "")
 	else:
@@ -267,34 +267,39 @@ async def rr_filelist(self):
 
 	#	if rrf is requesting directory, it has to be there.
 	if not os.path.exists(path):
-		os.makedirs(path)
-
-	#	whitespace uploads via nfs/samba
-	for file in os.listdir(path):
-		os.rename(os.path.join(path, file), os.path.join(path, file.replace(' ', '_')))
+		pass
 
 	#	append elements to files list matching rrf syntax
-	for el_ in os.listdir(path):
-		el_path = path + "/" + str(el_)
-		response['files'].append({
-			"type": "d" if os.path.isdir(el_path) else "f" ,
-			"name": str(el_) ,
-			"size": os.stat(el_path).st_size ,
-			"date": datetime.datetime.fromtimestamp(os.stat(el_path).st_mtime).strftime("%Y-%m-%dT%H:%M:%S")
+	if os.path.exists(path):
+
+		for file in os.listdir(path):
+			os.rename(os.path.join(path, file), os.path.join(path, file.replace(' ', '_')))
+
+		for el_ in os.listdir(path):
+			el_path = path + "/" + str(el_)
+			response['files'].append({
+				"type": "d" if os.path.isdir(el_path) else "f" ,
+				"name": str(el_) ,
+				"size": os.stat(el_path).st_size ,
+				"date": datetime.datetime.fromtimestamp(os.stat(el_path).st_mtime).strftime("%Y-%m-%dT%H:%M:%S")
 		})
 
-		#	add klipper macros as virtual files
-		#if "/macros" in self.get_argument('dir').replace("0:", ""):
-		#	for macro_ in self.klipper_macros:
+	#	add klipper macros as virtual files
+	if len(self.poll_data['klipper_macros']) > 0 and self.get_argument('dir').replace("0:", "") == '/macros':
+		response['files'].append({
+			"type": "d" ,
+			"name": "Klipper" ,
+			"date": datetime.datetime.fromtimestamp(os.stat(self.poll_data.get('info',{}).get('config_file',1)).st_mtime).strftime("%Y-%m-%dT%H:%M:%S")
+		})
+	if self.get_argument('dir').replace("0:", "") == '/macros/Klipper':
+		for macro in self.poll_data['klipper_macros']:
+			response['files'].append({
+				"type": "f" ,
+				"name": macro ,
+				"size": 1 ,
+				"date": datetime.datetime.fromtimestamp(os.stat(self.poll_data.get('info',{}).get('config_file',1)).st_mtime).strftime("%Y-%m-%dT%H:%M:%S")
+			})
 
-		#		response['files'].append({
-		#			"type": "f" ,
-		#			"name": macro_ ,
-		#			"size": 1 ,
-		#			"date": datetime.datetime.fromtimestamp(os.stat(self.klipper_config).st_mtime).strftime("%Y-%m-%dT%H:%M:%S")
-		#		})
-
-		#	virtual config file
 	self.poll_data['last_path'] = path
 	self.write(json.dumps(response))
 	#
@@ -362,14 +367,16 @@ async def rr_mkdir(self):
 		return await rr_filelist(self)
 	return {'err': 1}
 async def rr_move(self):
-	if "/sys/" in self.get_argument('old').replace("0:", "") and "config.g" in self.get_argument('old').replace("0:", ""):
-		src_ = self.klipper_config
-		dst_ = self.klipper_config + ".backup"
+	if "config.g" in self.get_argument('old').replace("0:", ""):
+		src_ = self.poll_data.get('info',{}).get('config_file',1)
+		dst_ = self.poll_data.get('info',{}).get('config_file',1) + ".backup"
+		shutil.copyfile(src_ , dst_)
+		return {'err': 0} #await rr_filelist(self)
 	else:
 		src_ = self.sd_root + self.get_argument('old').replace("0:", "")
 		dst_ = self.sd_root + self.get_argument('new').replace("0:", "")
 	try:
-		shutil.move( src_ , dst_)
+		shutil.move(src_ , dst_)
 	except Exception as e:
 		return {"err": 1}
 	return await rr_filelist(self)
@@ -666,10 +673,8 @@ def cmd_M98(params, self):
 	path = self.sd_root + "/" + "/".join(params['#original'].split("/")[1:])
 
 	if not os.path.exists(path):
-		return
-		#	now we know its no macro file
-		klipma = params['#original'].split("/")[-1].replace("\"", "")
-		if klipma in self.klipper_macros:
+		klipma = params['#original'].split("/")[-1]
+		if klipma in self.poll_data['klipper_macros']:
 			return klipma
 		else:
 			return 0

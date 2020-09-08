@@ -101,6 +101,7 @@ class dwc2():
 		self.clients = {}
 		self.poll_data = {}
 		self.poll_data['last_path'] = None
+		self.poll_data['klipper_macros'] = []
 		self.init_done = False
 
 		self.ioloop = IOLoop.current()
@@ -144,6 +145,7 @@ class dwc2():
 
 		self.poll_data = {}
 		self.poll_data['last_path'] = None
+		self.poll_data['klipper_macros'] = []
 
 		l_ = { "gcode/help": {}, "info": {}, "objects/list": {}, "list_endpoints": {}, "gcode/subscribe_output": { "response_template": {"DWC_2": "dwc2_subscription_to_gcode_replys"} } }
 		for item in l_.keys():
@@ -152,7 +154,6 @@ class dwc2():
 			await self.klippy.send_request(req_)
 			res = await req_.wait(10)
 			self.poll_data[item] = res.get('result', "")
-
 		#		subscribe to all Objects
 		objects = {}
 		for s_ in self.poll_data["objects/list"]['objects']:
@@ -163,10 +164,14 @@ class dwc2():
 		objects_init = await req_.wait(10)
 		for key in objects_init['result']['status']:
 			self.poll_data[key] = objects_init['result']['status'][key]
-		#	pick from config.
+		#	pick sd_root from config.
 		configfile = self.poll_data.get('configfile', None)
 		if configfile:
 			self.sd_root = configfile.get('config',{}).get('virtual_sdcard',{}).get('path', None)
+		#	fetching klipper macros
+		for key, val in self.poll_data['gcode/help'].items():
+			if val == "G-Code macro":
+				self.poll_data['klipper_macros'].append(key)
 		self.init_done = True
 	def process_klippy_response(self, out_):
 		#print("GOT: \t" + json.dumps(out_))
