@@ -344,7 +344,7 @@ async def rr_gcode(self):
 	await self.klippy.send_request(req_)
 
 	try:
-		res = await req_.wait(7)	#	needs 7 as dwc webapp is waiting 8
+		res = await req_.wait(6)	#	needs 6 as dwc webapp is waiting 8
 	except Exception as e:
 		#	asume longrunning command
 		print("timeout reached with: " + str(e))
@@ -353,7 +353,7 @@ async def rr_gcode(self):
 
 	if 'error' in res.keys():
 		#		bluebear will tell us
-		self.write(json.dumps(""))
+		self.write(json.dumps('{"buff": 241}'))
 	else:
 		self.clients[self.request.remote_ip]['gcode_replys'].append("")
 		self.write('{"buff": 241}')
@@ -383,9 +383,21 @@ async def rr_move(self):
 async def rr_reply(self):
 	output = ""
 	try:
-		while self.clients[self.request.remote_ip]['gcode_replys']:
-			output += self.clients[self.request.remote_ip]['gcode_replys'].pop(0).replace("!!", "Error: ").replace("//", "Warning: ") + "\n"
-	except:
+		reps = self.clients[self.request.remote_ip]['gcode_replys']
+		if len(reps) > 10:
+			while len(reps) > 0:
+				line = reps.pop(0)
+				line = line.replace("!!", "Error: ").replace("//", "")
+				replys = line.split('\n')
+				for r_ in replys:
+					output += re.sub(r'^\s', '', r_) + '\n'
+		else:
+			line = reps.pop(0)
+			line = line.replace("!!", "Error: ").replace("//", "")
+			replys = line.split('\n')
+			for r_ in replys:
+				output += re.sub(r'^\s', '', r_) + '\n'
+	except Exception as e:
 		pass
 	else:
 		self.write(output)
@@ -637,8 +649,11 @@ def cmd_G10(params, self):
 #	rrf M0 - cancel print from sd
 def cmd_M0(params, self):
 	response = "SDCARD_RESET_FILE" + "\n"
-	path = self.sd_root + "/macros/print/resume.g"
-	response += rrf_macro(path)
+	path = self.sd_root + "/macros/print/cancel.g"
+	if os.path.isfile(path):
+		response += rrf_macro(path)
+	elif 'CANCEL_PRINT' in self.poll_data['klipper_macros']:
+		response += 'CANCEL_PRINT'
 	return response
 # 	rrf M24 - start/resume print from sdcard
 def cmd_M24(params, self):
@@ -646,7 +661,10 @@ def cmd_M24(params, self):
 	#	rrf resume macro
 	if self.poll_data['virtual_sdcard']['file_position']> 0:
 		path = self.sd_root + "/macros/print/resume.g"
-		response += rrf_macro(path)
+		if os.path.isfile(path):
+			response += rrf_macro(path)
+		elif 'RESUME_PRINT' in self.poll_data['klipper_macros']:
+			response += 'RESUME_PRINT'
 	return response
 #	rrf M25 - pause print
 def cmd_M25(params, self):
@@ -654,7 +672,10 @@ def cmd_M25(params, self):
 	self.poll_data['pausing'] = True
 	#	rrf pause macro:
 	path = self.sd_root + "/macros/print/pause.g"
-	response += rrf_macro(path)
+	if os.path.isfile(path):
+		response += rrf_macro(path)
+	elif 'PAUSE_PRINT' in self.poll_data['klipper_macros']:
+		response += 'PAUSE_PRINT'
 	return response
 #	rrf M32 - start print from sdcard
 def cmd_M32(params, self):
