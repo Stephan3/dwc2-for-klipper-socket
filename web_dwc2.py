@@ -6,6 +6,7 @@ import socket
 import tornado.web
 import rr_handler
 import os
+import configparser
 from tornado import gen, iostream
 from tornado.ioloop import IOLoop, PeriodicCallback
 from tornado.locks import Event
@@ -89,12 +90,12 @@ class klippy_uplink(object):
 #
 
 class dwc2():
-	def __init__(self):
+	def __init__(self, config):
 		self.httpserver = None
 		self.sd_root = None
 		self.web_root = os.path.dirname(os.path.abspath(__file__)) + "/web"
-		self.adress = "0.0.0.0"				# string not accepted ?
-		self.port = "4700"
+		self.ip = config.get('webserver', 'listen_adress')				# string not accepted ?
+		self.port = config.get('webserver', 'port')
 
 		self.klippy = klippy_uplink(self.process_klippy_response, self.connection_lost)
 		self.pending_requests = {}
@@ -128,7 +129,7 @@ class dwc2():
 			],
 			log_function=tornado_logger)
 		self.httpserver = tornado.httpserver.HTTPServer( application, max_buffer_size=250*1024*1024 )
-		self.httpserver.listen( self.port )
+		self.httpserver.listen( self.port, self.ip )
 		self.ioloop.spawn_callback( self.init_ )
 
 	def connection_lost(self):
@@ -216,9 +217,11 @@ class dwc2():
 
 def main():
 
+	config = configparser.ConfigParser()
+	config.read(os.path.dirname(os.path.abspath(__file__)) + '/dwc2.cfg')
 
 	io_loop = IOLoop.current()
-	server = dwc2()
+	server = dwc2(config)
 
 	server.start()
 	io_loop.start()
