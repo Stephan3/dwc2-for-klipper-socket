@@ -406,13 +406,13 @@ async def rr_status(self, status=0):
 		#	case 'I': return 'idle';
 
 		state = 'I'
-		stats = self.poll_data.get('print_stats', None)
 
 		if 'Printer is ready' != self.poll_data.get('webhooks', {}).get('state_message', "Knackwurst") :
 			return 'O'
 
 		if self.poll_data['idle_timeout']['state'] == 'Printing':
 			state = 'B'
+		stats = self.poll_data.get('print_stats', None)
 		if stats:
 			s_ = stats['state']
 			if s_ == 'printing': state = 'P'
@@ -430,7 +430,8 @@ async def rr_status(self, status=0):
 		return [ 1 if "x" in q_ else 0 , 1 if "y" in q_ else 0 , 1 if "z" in q_ else 0 ]
 
 	#	if no klippy connection there provide minimalistic dummy data
-	if not self.klippy.connected or not self.init_done:
+	if not self.klippy.connected or \
+		not self.init_done or translate_status() == 'O':
 		self.write(json.dumps({
 			"status": "O",
 			"seq": len(self.clients[self.request.remote_ip]['gcode_replys']) ,
@@ -528,7 +529,7 @@ async def rr_status(self, status=0):
 		"mountedVolumes": 1,
 		"name": self.poll_data['info']['hostname'],
 		"probe": {
-			"threshold": 100,
+			"threshold": 2000,
 			"height": 0,
 			"type": 8
 		},
@@ -635,7 +636,7 @@ def cmd_G10(params, self):
 	return str("M104 T%d S%0.2f" % ( int(params['P']), int(params['S']) ) )
 #	rrf M0 - cancel print from sd
 def cmd_M0(params, self):
-	response = "SDCARD_RESET_FILE"
+	response = "SDCARD_RESET_FILE" + "\n"
 	path = self.sd_root + "/macros/print/resume.g"
 	response += rrf_macro(path)
 	return response
@@ -710,6 +711,7 @@ def cmd_M290(params, self):
 	mm_step = float( params['Z'] )
 	return 'SET_GCODE_OFFSET Z_ADJUST=' + str(mm_step) + ' MOVE=1'
 def cmd_M999(params, self):
+	self.init_done = False
 	return 'RESTART'
 #
 #
