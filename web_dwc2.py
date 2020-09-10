@@ -88,14 +88,17 @@ class klippy_uplink(object):
 #
 #
 #
-
 class dwc2():
+
 	def __init__(self, config):
 		self.httpserver = None
 		self.sd_root = None
-		self.web_root = os.path.dirname(os.path.abspath(__file__)) + "/web"
-		self.ip = config.get('webserver', 'listen_adress')				# string not accepted ?
-		self.port = config.get('webserver', 'port')
+
+		self.config = config
+		self.web_root = os.path.expanduser( config.get('webserver', 'web_root', \
+			fallback=os.path.dirname(os.path.abspath(__file__)) + "/web") )
+		self.ip = config.get('webserver', 'listen_adress', fallback='0.0.0.0')
+		self.port = config.get('webserver', 'port', fallback=4750)
 
 		self.klippy = klippy_uplink(self.process_klippy_response, self.connection_lost)
 		self.pending_requests = {}
@@ -131,12 +134,13 @@ class dwc2():
 		self.httpserver = tornado.httpserver.HTTPServer( application, max_buffer_size=250*1024*1024 )
 		self.httpserver.listen( self.port, self.ip )
 		self.ioloop.spawn_callback( self.init_ )
-
+	def config_def(section, key, default):
+		res = self.config.get(section,key)
 	def connection_lost(self):
 		self.klippy.connected = False
 		self.init_done = False
 		self.ioloop.spawn_callback( self.init_ )
-
+		res = config.get(section, key)
 	async def init_(self):
 
 		if not self.klippy.connected:
@@ -168,7 +172,7 @@ class dwc2():
 		#	pick sd_root from config.
 		configfile = self.poll_data.get('configfile', None)
 		if configfile:
-			self.sd_root = configfile.get('config',{}).get('virtual_sdcard',{}).get('path', None)
+			self.sd_root = os.path.expanduser( configfile.get('config',{}).get('virtual_sdcard',{}).get('path', None) )
 		#	fetching klipper macros
 		for key, val in self.poll_data['gcode/help'].items():
 			if val == "G-Code macro":
@@ -193,10 +197,6 @@ class dwc2():
 			return
 
 		print("!! not covered !!" + json.dumps(out_))
-
-	#
-	#
-
 	class MainHandler(tornado.web.RequestHandler):
 
 		def initialize(self, web_root):
@@ -211,9 +211,6 @@ class dwc2():
 					return
 
 			self.render( self.web_root + "/index.html" )
-
-	#
-	#
 
 def main():
 
