@@ -94,11 +94,17 @@ class dwc2():
 		self.httpserver = None
 		self.sd_root = None
 
+		#	config - web section
 		self.config = config
 		self.web_root = os.path.expanduser( config.get('webserver', 'web_root', \
 			fallback=os.path.dirname(os.path.abspath(__file__)) + "/web") )
 		self.ip = config.get('webserver', 'listen_adress', fallback='0.0.0.0')
 		self.port = config.get('webserver', 'port', fallback=4750)
+		#	config regex
+		regex = config.get('reply_filters', 'regex', fallback=None)
+		if regex:
+			regex = regex.split('\n')
+			regex = [ x for x in regex if len(x)>0 ]
 
 		self.klippy = klippy_uplink(self.process_klippy_response, self.connection_lost)
 		self.pending_requests = {}

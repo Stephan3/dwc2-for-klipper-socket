@@ -632,8 +632,7 @@ async def rr_upload(self):
 	if not os.path.exists(dir_):
 		os.makedirs(dir_)
 
-	with open(path.replace(" ","_"), 'w') as out:
-		out.write(self.request.body.decode('utf-8'))
+	open(path.replace(" ","_"), "wb").write(self.request.body)
 
 	if os.path.isfile(path):
 		ret_ = {"err":0}
