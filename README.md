@@ -3,7 +3,7 @@
 This is a rewrite of [dwc2-for-klipper](https://github.com/Stephan3/dwc2-for-klipper). As Klipper offers now a unixsocket API,
 its time to use it and run outside klippers main thread.
 
-![screen](https://i.ibb.co/nPx3Rym/Unbenannt.png "screen")
+![screen](screenshots/screen.PNG?raw=true "screen")
 
 ### Things you shold know
 - Klipper is not RepRapFirmware
