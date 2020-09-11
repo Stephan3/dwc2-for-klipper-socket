@@ -3,10 +3,13 @@
 This is a rewrite of [dwc2-for-klipper](https://github.com/Stephan3/dwc2-for-klipper). As Klipper offers now a unixsocket API,
 its time to use it and run outside klippers main thread.
 
+![screen](https://i.ibb.co/nPx3Rym/Unbenannt.png "screen")
+
 ### Things you shold know
 - Klipper is not RepRapFirmware
+- This is a translator between [klipper](https://github.com/KevinOConnor/klipper) and [Duet Web Control](https://github.com/Duet3D/DuetWebControl)
 - you can restart dwc service at any time without restarting klipper
-- Sometimes buttons get a bad response
+- Sometimes buttons get a bad response - especially macros
   - usually a timing issue
   - make sure action gets performed
   - **set AJAX retries  for now to 0**
