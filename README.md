@@ -25,6 +25,9 @@ its time to use it and run outside klippers main thread.
 
 ### Installation ###
 
+@th33xitus made a installer, see:
+[Installer](https://github.com/th33xitus/kiauh/tree/dev-2.0)
+
 ##### Klipper needs to run with a aditional arg -a /tmp/klippy_uds ####
 
 This s my klipper systemd service located at ```/etc/systemd/system/klipper.service```
