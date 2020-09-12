@@ -801,6 +801,24 @@ def parse_gcode(path, self):
 				'duration': ';TIME:\\d+',									#	its there
 				'filament': ';Filament used: \d*.\d+m'						#	its there
 			},
+		'Simplify3D':
+			{
+				'name': 'Simplify3D.*\s\d+.\d+.\d+',
+				'object_h' : '\sZ\\d+.\\d*',
+				'first_h': ';   firstLayerHeightPercentage,\d.\d+',
+				'layer_h': ';   layerHeight,\d.\d+',
+				'duration': ';   Build time: \d+\shours\s\d+\sminutes',
+				'filament': ';   Filament length: \d*.\d+'
+			},
+		'PrusaSlicer':
+			{
+				'name': 'PrusaSlicer\s\d+.\d+.\d+',
+				'object_h': 'G1\sZ\d*\.\d*',
+				'first_h': '; first_layer_height = \d.\d+\%|\d.\d+',
+				'layer_h': '; layer_height = \d.\d+',
+				'duration': '; estimated printing time.*(\d+d\s)?(\d+h\s)?(\d+m\s)?(\d+s)',
+				'filament': '; filament\sused\s.mm.\s=\s[0-9\.]+'
+			},
 		'SuperSlicer':
 			{
 				'name': 'SuperSlicer\s\d+.\d+.\d+',							#	somewhere in the first lines
