@@ -26,7 +26,7 @@ its time to use it and run outside klippers main thread.
 ### Installation ###
 
 @th33xitus made a installer, see:
-[Installer](https://github.com/th33xitus/kiauh/tree/dev-2.0)
+[Installer](https://github.com/th33xitus/kiauh)
 
 ##### Klipper needs to run with a aditional arg -a /tmp/klippy_uds ####
 
