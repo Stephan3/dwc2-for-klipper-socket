@@ -131,7 +131,8 @@ async def rr_connect(self):
 	#
 async def rr_config(self):
 
-	if not self.klippy.connected or not self.init_done:
+	if not self.klippy.connected or not self.init_done or \
+		'Printer is ready' != self.poll_data.get('webhooks', {}).get('state_message', "Knackwurst"):
 		self.write(json.dumps({
 			"axisMins": [],
 			"axisMaxes": [],
@@ -149,15 +150,19 @@ async def rr_config(self):
 		}))
 		return
 
+	x = self.poll_data['configfile']['config']['stepper_x']
+	y = self.poll_data['configfile']['config']['stepper_y']
+	z = self.poll_data['configfile']['config']['stepper_z']
+
 	self.write(json.dumps({
 		#	min(with posmin?)
-		"axisMins": [ 	float( self.poll_data['configfile']['config']['stepper_x']['position_endstop'] ),
-						float( self.poll_data['configfile']['config']['stepper_y']['position_endstop'] ),
-						float( self.poll_data['configfile']['config']['stepper_z']['position_endstop'] )
+		"axisMins": [ 	float( x.get('position_endstop', x.get('position_min', 0)) ),
+						float( y.get('position_endstop', y.get('position_min', 0)) ),
+						float( z.get('position_endstop', z.get('position_min', 0)) )
 		],
-		"axisMaxes": [	float( self.poll_data['configfile']['config']['stepper_x']['position_max'] ),
-						float( self.poll_data['configfile']['config']['stepper_y']['position_max'] ),
-						float( self.poll_data['configfile']['config']['stepper_z']['position_max'] )
+		"axisMaxes": [	float( x['position_max'] ),
+						float( y['position_max'] ),
+						float( z['position_max'] )
 		],
 		"accelerations": [ self.poll_data['toolhead']['max_accel'] for x in self.poll_data['toolhead']['position'] ],
 		"currents": [ 0, 0, 0, 0 ] ,	#	can we fetch data from tmc drivers here ?
