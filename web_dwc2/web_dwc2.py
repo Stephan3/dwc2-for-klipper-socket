@@ -4,7 +4,7 @@ import json
 import time
 import socket
 import tornado.web
-import rr_handler
+from web_dwc2 import rr_handler
 import os
 import configparser
 from tornado import gen, iostream
