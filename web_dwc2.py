@@ -103,9 +103,7 @@ class dwc2():
 		#	config regex
 		regex = config.get('reply_filters', 'regex', fallback=None)
 		if regex:
-			regex = regex.split('\n')
-			regex = [ x for x in regex if len(x)>0 ]
-
+			self.regex_filter = [ x for x in regex.split('\n') if len(x)>0 ]
 		self.klippy = klippy_uplink(self.process_klippy_response, self.connection_lost)
 		self.pending_requests = {}
 		self.clients = {}

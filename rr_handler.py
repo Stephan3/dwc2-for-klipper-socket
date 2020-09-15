@@ -17,6 +17,7 @@ class rr_handler(tornado.web.RequestHandler):
 		self.ioloop = dwc2.ioloop
 		self.pending_requests = dwc2.pending_requests
 		self.init_done = dwc2.init_done
+		self.regex_filter = '|'.join(dwc2.regex_filter)
 
 	async def get(self, *args):
 
@@ -396,12 +397,16 @@ async def rr_reply(self):
 				line = line.replace("!!", "Error: ").replace("//", "")
 				replys = line.split('\n')
 				for r_ in replys:
+					if translate_status(self) == 'P' and re.findall(self.regex_filter, r_):
+						continue
 					output += re.sub(r'^\s', '', r_) + '\n'
 		else:
 			line = reps.pop(0)
 			line = line.replace("!!", "Error: ").replace("//", "")
 			replys = line.split('\n')
 			for r_ in replys:
+				if translate_status(self) == 'P' and re.findall(self.regex_filter, r_):
+					continue
 				output += re.sub(r'^\s', '', r_) + '\n'
 	except Exception as e:
 		pass
@@ -409,47 +414,13 @@ async def rr_reply(self):
 		self.write(output)
 async def rr_status(self, status=0):
 
-	def translate_status():
-
-		#	case 'F': return 'updating';
-		#	case 'O': return 'off';
-		#	case 'H': return 'halted';
-		#	case 'D': return 'pausing';
-		#	case 'S': return 'paused';
-		#	case 'R': return 'resuming';
-		#	case 'P': return 'processing';	?printing?
-		#	case 'M': return 'simulating';
-		#	case 'B': return 'busy';
-		#	case 'T': return 'changingTool';
-		#	case 'I': return 'idle';
-
-		state = 'I'
-
-		if 'Printer is ready' != self.poll_data.get('webhooks', {}).get('state_message', "Knackwurst") :
-			return 'O'
-
-		if self.poll_data['idle_timeout']['state'] == 'Printing':
-			state = 'B'
-		stats = self.poll_data.get('print_stats', None)
-		if stats:
-			s_ = stats['state']
-			if s_ == 'printing': state = 'P'
-			if self.poll_data.get('pausing', False): state = 'D'
-			if s_ == 'paused':
-				state = 'S'
-				self.poll_data['pausing'] = False		
-
-			#	need printing here later if virtual sdcard is doing things
-
-		return state
-
 	def get_axes_homed():
 		q_ = self.poll_data.get('toolhead', {}).get('homed_axes', [])
 		return [ 1 if "x" in q_ else 0 , 1 if "y" in q_ else 0 , 1 if "z" in q_ else 0 ]
 
 	#	if no klippy connection there provide minimalistic dummy data
 	if not self.klippy.connected or \
-		not self.init_done or translate_status() == 'O':
+		not self.init_done or translate_status(self) == 'O':
 		self.write(json.dumps({
 			"status": "O",
 			"seq": len(self.clients[self.request.remote_ip]['gcode_replys']) ,
@@ -486,7 +457,7 @@ async def rr_status(self, status=0):
 	gcode_move = self.poll_data.get('gcode_move', {})
 
 	response = {
-		"status": translate_status(),
+		"status": translate_status(self),
 		"coords": {
 			"axesHomed": get_axes_homed(), # [1,1,1]
 			"xyz": gcode_move.get('position',[0,0,0,0])[:3] ,	#"xyz": [144.486,26.799,18.6]
@@ -956,3 +927,37 @@ def rrf_macro(path):
 			for line in [x.strip() for x in lines]:
 				response += line + "\n"
 	return response
+def translate_status(self):
+
+	#	case 'F': return 'updating';
+	#	case 'O': return 'off';
+	#	case 'H': return 'halted';
+	#	case 'D': return 'pausing';
+	#	case 'S': return 'paused';
+	#	case 'R': return 'resuming';
+	#	case 'P': return 'processing';	?printing?
+	#	case 'M': return 'simulating';
+	#	case 'B': return 'busy';
+	#	case 'T': return 'changingTool';
+	#	case 'I': return 'idle';
+
+	state = 'I'
+
+	if 'Printer is ready' != self.poll_data.get('webhooks', {}).get('state_message', "Knackwurst") :
+		return 'O'
+
+	if self.poll_data['idle_timeout']['state'] == 'Printing':
+		state = 'B'
+
+	stats = self.poll_data.get('print_stats', None)
+	if stats:
+		s_ = stats['state']
+		if s_ == 'printing': state = 'P'
+		if self.poll_data.get('pausing', False): state = 'D'
+		if s_ == 'paused':
+			state = 'S'
+			self.poll_data['pausing'] = False
+	else:
+		self.poll_data['pausing'] = False
+
+	return state
