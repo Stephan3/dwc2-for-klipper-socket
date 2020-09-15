@@ -5,89 +5,13 @@ import time
 import socket
 import tornado.web
 import rr_handler
-import os
+import os, sys
 import configparser
 from tornado import gen, iostream
 from tornado.ioloop import IOLoop, PeriodicCallback
 from tornado.locks import Event
 from random import randint
 
-class klippy_uplink(object):
-
-	#	example dialog:
-
-	def __init__(self, reply_handler, connection_lost):
-		self.ioloop = IOLoop.current()
-		self.iostream = None
-		self.reply_handler = reply_handler
-		self.con_loss = connection_lost 
-		self.connected = False
-
-	#	establish connection to klippys unixsocket
-	async def connect(self):
-
-		self.client = iostream.IOStream( socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) )
-		try:
-			await self.client.connect("/tmp/klippy_uds")
-		except Exception as e:
-			print("Cant connect to klippy with: " + str(e))
-			self.connected = False
-		else:
-			self.ioloop.spawn_callback(self.read_stream, self.client)
-			self.client.set_close_callback(self.con_loss)
-			self.connected = True
-
-	async def send_request(self, request):
-		data = json.dumps(request.to_dict()).encode() + b"\x03"
-		try:
-			await self.client.write(data)
-		except Exception as e:
-			raise
-
-	async def read_stream(self, stream):
-		while not stream.closed():
-			try:
-				data = await stream.read_until(b'\x03')
-			except Exception as e:
-				self.con_loss
-			try:
-				out_ = json.loads(data[:-1])
-				self.reply_handler(out_)
-			except Exception as e:
-				raise
-				import pdb; pdb.set_trace()
-
-	class form_request:
-		def __init__(self, method, params):
-			self.id = randint(100000000000, 999999999999)
-			self.method = method
-			self.params = params
-			self._event = Event()
-			self.response = None
-
-		async def wait(self, timeout):
-			start_time = time.time()
-			while True:
-				timeout = time.time() + timeout
-				try:
-					await self._event.wait(timeout=timeout)
-				except TimeoutError:
-					raise
-				break
-			#if isinstance(self.response):
-			#	raise self.response
-			return self.response
-
-		def notify(self, response):
-			self.response = response
-			self._event.set()
-
-		def to_dict(self):
-			return {'id': self.id, 'method': self.method,
-					'params': self.params}
-#
-#
-#
 class dwc2():
 
 	def __init__(self, config):
@@ -124,7 +48,7 @@ class dwc2():
 			fressehaltn = [ "/favicon.ico", "/rr_status?type=1", "/rr_status?type=2", "/rr_status?type=3", "/rr_config", "/rr_reply" ]
 			values = [str(time.time())[-8:], req.request.remote_ip, req.request.method, req.request.uri]
 			if req.request.uri not in fressehaltn:
-				print("DWC2:" + " - ".join(values))	#	bind this to debug later
+				print("Tornado:" + " - ".join(values))	#	bind this to debug later
 
 		application = tornado.web.Application(
 			[
@@ -215,8 +139,90 @@ class dwc2():
 					return
 
 			self.render( self.web_root + "/index.html" )
+class klippy_uplink(object):
+
+	#	example dialog:
+
+	def __init__(self, reply_handler, connection_lost):
+		self.ioloop = IOLoop.current()
+		self.iostream = None
+		self.reply_handler = reply_handler
+		self.con_loss = connection_lost
+		self.connected = False
+
+	#	establish connection to klippys unixsocket
+	async def connect(self):
+
+		self.client = iostream.IOStream( socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) )
+		try:
+			await self.client.connect("/tmp/klippy_uds")
+		except Exception as e:
+			print("Cant connect to klippy with: " + str(e))
+			self.connected = False
+		else:
+			self.ioloop.spawn_callback(self.read_stream, self.client)
+			self.client.set_close_callback(self.con_loss)
+			self.connected = True
+
+	async def send_request(self, request):
+		data = json.dumps(request.to_dict()).encode() + b"\x03"
+		try:
+			await self.client.write(data)
+		except Exception as e:
+			raise
+
+	async def read_stream(self, stream):
+		while not stream.closed():
+			try:
+				data = await stream.read_until(b'\x03')
+			except Exception as e:
+				self.con_loss
+			try:
+				out_ = json.loads(data[:-1])
+				self.reply_handler(out_)
+			except Exception as e:
+				raise
+				import pdb; pdb.set_trace()
+
+	class form_request:
+		def __init__(self, method, params):
+			self.id = randint(100000000000, 999999999999)
+			self.method = method
+			self.params = params
+			self._event = Event()
+			self.response = None
+
+		async def wait(self, timeout):
+			start_time = time.time()
+			while True:
+				timeout = time.time() + timeout
+				try:
+					await self._event.wait(timeout=timeout)
+				except TimeoutError:
+					raise
+				break
+			#if isinstance(self.response):
+			#	raise self.response
+			return self.response
+
+		def notify(self, response):
+			self.response = response
+			self._event.set()
+
+		def to_dict(self):
+			return {'id': self.id, 'method': self.method,
+					'params': self.params}
+class logger:
+	def write(self,msg):
+		open("/tmp/dwc2.log", "a").write(msg)
+	def flush(self):
+		pass
 
 def main():
+	
+	open("/tmp/dwc2.log", "w").write("========== Started ==========\n")
+	sys.stdout = logger()
+	sys.stderr = logger()
 
 	config = configparser.ConfigParser()
 	config.read(os.path.dirname(os.path.abspath(__file__)) + '/dwc2.cfg')
@@ -227,7 +233,7 @@ def main():
 	server.start()
 	io_loop.start()
 
-	import pdb; pdb.set_trace()
+	sys.stderr.close()
 
 
 if __name__ == '__main__':
