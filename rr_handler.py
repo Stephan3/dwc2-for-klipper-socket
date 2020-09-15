@@ -31,15 +31,15 @@ class rr_handler(tornado.web.RequestHandler):
 		if self.request.remote_ip in self.clients.keys():
 			self.clients[self.request.remote_ip]['last_seen'] = time.time()
 
-		#	polldata fetch - curl http://127.0.0.1:4700/rr_poll_data |jq
+		#	polldata fetch - curl http://127.0.0.1:4750/rr_poll_data |jq
 		if "rr_poll_data" in self.request.uri:
 			self.write(json.dumps(self.poll_data))
 			return
-		#	clients - curl http://127.0.0.1:4700/rr_clients |jq
+		#	clients - curl http://127.0.0.1:4750/rr_clients |jq
 		if "rr_clients" in self.request.uri:
 			self.write(json.dumps(self.clients))
 			return
-		#	plopp to debug - curl http://127.0.0.1:4700/rr_entry
+		#	plopp to debug - curl http://127.0.0.1:4750/rr_entry
 		if "rr_entry" in self.request.uri:
 			import pdb; pdb.set_trace()
 			return
@@ -150,9 +150,10 @@ async def rr_config(self):
 		}))
 		return
 
-	x = self.poll_data['configfile']['config']['stepper_x']
-	y = self.poll_data['configfile']['config']['stepper_y']
-	z = self.poll_data['configfile']['config']['stepper_z']
+	config = self.poll_data['configfile']['config']
+	x = config.get('stepper_x', config.get('stepper_a'))
+	y = config.get('stepper_y', config.get('stepper_b'))
+	z = config.get('stepper_z', config.get('stepper_c'))
 
 	self.write(json.dumps({
 		#	min(with posmin?)
@@ -160,9 +161,9 @@ async def rr_config(self):
 						float( y.get('position_endstop', y.get('position_min', 0)) ),
 						float( z.get('position_endstop', z.get('position_min', 0)) )
 		],
-		"axisMaxes": [	float( x['position_max'] ),
-						float( y['position_max'] ),
-						float( z['position_max'] )
+		"axisMaxes": [	float( x.get('position_max', 0) ),
+						float( y.get('position_max', 0) ),
+						float( z.get('position_max', 0) )
 		],
 		"accelerations": [ self.poll_data['toolhead']['max_accel'] for x in self.poll_data['toolhead']['position'] ],
 		"currents": [ 0, 0, 0, 0 ] ,	#	can we fetch data from tmc drivers here ?
