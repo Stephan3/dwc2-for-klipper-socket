@@ -803,7 +803,7 @@ def parse_gcode(path, self):
 			{
 				'name': '^; generated\sby\s(PrusaSlicer?)\s\d.\d+',
 				'version': ';\sgenerated\sby\sPrusaSlicer\s(.+?)\son\s.*',
-				'object_h': ';\sHeight\s=\s\d+.\d+\smm',
+				'object_h': 'G1 (Z.+?) F.*',
 				'first_h': '; first_layer_height = \d.\d+\%|\d.\d+',
 				'layer_h': '; layer_height = \d.\d+',
 				'duration': '; estimated printing time.*(\d+d\s)?(\d+h\s)?(\d+m\s)?(\d+s)',
@@ -866,19 +866,23 @@ def parse_gcode(path, self):
 	content = [ x.decode('utf-8') for x in content ]
 	to_analyse = " ".join(content)
 
-	for key, value in slicers.items():
-		if re.search(value['name'], to_analyse):
-			version = re.search(value['version'], to_analyse).group(1)
-			metadata['slicer'] = re.search(value['name'], to_analyse).group(1) + " " + version
-			metadata['objects_h'] = max( [ float(mat_) for mat_ in re.findall("\d+\.\d+", \
-				' '.join(re.findall(value['object_h'], to_analyse )) ) ] )
-			metadata['first_h'] = min( [ float(mat_) for mat_ in re.findall("\d+\.\d+", \
-				' '.join(re.findall(value['object_h'], to_analyse )) ) ] )
-			metadata['layer_h'] = min( [ float(mat_) for mat_ in re.findall("\d+\.\d+", \
-				' '.join(re.findall(value['layer_h'], to_analyse )) ) ] )
-			metadata['duration'] = calc_time( re.search(value['duration'], to_analyse ).group() )
-			metadata['filament'] = max( [ float(mat_) for mat_ in re.findall("\d+\.\d+", \
-				' '.join(re.findall(value['filament'][0], to_analyse )) ) ] ) * value['filament'][1]
+	try:
+		for key, value in slicers.items():
+			if re.search(value['name'], to_analyse):
+				version = re.search(value['version'], to_analyse).group(1)
+				metadata['slicer'] = re.search(value['name'], to_analyse).group(1) + " " + version
+				metadata['objects_h'] = max( [ float(mat_) for mat_ in re.findall("\d+\.\d+", \
+					' '.join(re.findall(value['object_h'], to_analyse )) ) ] + [-1] )
+				metadata['first_h'] = min( [ float(mat_) for mat_ in re.findall("\d+\.\d+", \
+					' '.join(re.findall(value['object_h'], to_analyse )) ) ] + [10000] )
+				metadata['layer_h'] = min( [ float(mat_) for mat_ in re.findall("\d+\.\d+", \
+					' '.join(re.findall(value['layer_h'], to_analyse )) ) ] + [10000] )
+				metadata['duration'] = calc_time( re.search(value['duration'], to_analyse ).group() )
+				metadata['filament'] = max( [ float(mat_) for mat_ in re.findall("\d+\.\d+", \
+					' '.join(re.findall(value['filament'][0], to_analyse )) ) ] + [-1] ) * value['filament'][1]
+	except Exception as e:
+		print('Error on gcode processing ' + repr(e))
+		#import pdb; pdb.set_trace()
 
 	response = {
 		"size": int(os.stat(path).st_size) ,
