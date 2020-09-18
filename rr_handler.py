@@ -791,7 +791,7 @@ def parse_gcode(path, self):
 			},
 		'KISSlicer':
 			{
-				'name': '; (KISSlicer?) - FREE',
+				'name': '; (KISSlicer?) - .*',
 				'version': '; version (.+\.?)',
 				'object_h': '; END_LAYER_OBJECT z=.*',
 				'first_h': '; END_LAYER_OBJECT z=.*',
