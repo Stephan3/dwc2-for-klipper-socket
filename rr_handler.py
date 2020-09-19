@@ -460,7 +460,7 @@ async def rr_status(self, status=0):
 		"status": translate_status(self),
 		"coords": {
 			"axesHomed": get_axes_homed(), # [1,1,1]
-			"xyz": gcode_move.get('position',[0,0,0,0])[:3] ,	#"xyz": [144.486,26.799,18.6]
+			"xyz": [a - b for a, b in zip(gcode_move.get('position',[0,0,0,0])[:3], gcode_move.get('homing_origin',[0,0,0,0]))] ,
 			"machine": [ 0, 0, 0 ],			#	what ever this is? no documentation.
 			"extr": gcode_move.get('position',[0,0,0,0])[3:]
 		},
@@ -557,12 +557,13 @@ async def rr_status(self, status=0):
 					"state": response['temps']['state'] + [ state ] ,
 					"names": response['temps']['names'] + [ "chamber" ] ,
 					})
-				response['temps']['extra'].append({ 'name': 'tf_chamber speed',
+				response['temps']['extra'].append({ 'name': 'tf_chamber speed [%]',
 												'temp': self.poll_data[key]['speed']*100 })
 			else:
 				response['temps']['extra'].append({ 'name': key,
 												'temp': self.poll_data[key]['temperature'] })
-
+	#	accels as graph
+	response['temps']['extra'].append({ 'name': 'max_accel  [*10]', 'temp': self.poll_data['toolhead']['max_accel']/10 })
 	if status == 3:
 		k_stats = self.poll_data.get('print_stats', {})
 		sdcard = self.poll_data.get('virtual_sdcard', {})
