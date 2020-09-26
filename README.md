@@ -6,6 +6,7 @@ its time to use it and run outside klippers main thread.
 ![screen](screenshots/screen.PNG?raw=true "screen")
 
 ### Things you shold know
+- it work everywhere were klipper works, not only duets
 - Klipper is not RepRapFirmware
 - This is a translator between [klipper](https://github.com/KevinOConnor/klipper) and [Duet Web Control](https://github.com/Duet3D/DuetWebControl)
 - you can restart dwc service at any time without restarting klipper
