@@ -34,7 +34,7 @@ its time to use it and run outside klippers main thread.
 This s my klipper systemd service located at ```/etc/systemd/system/klipper.service```
 ```
 [Unit]
-Description=klipper pinter service
+Description=klipper printer service
 After=network.target
 
 [Service]
