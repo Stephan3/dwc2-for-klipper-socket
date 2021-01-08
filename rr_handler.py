@@ -472,7 +472,7 @@ async def rr_status(self, status=0):
 		"params": {
 			"atxPower": -1,
 			"fanNames": [ "" ],
-			"fanPercent": [ self.poll_data.get('fan', {}).get('speed', 0).*100 ] ,
+			"fanPercent": [ self.poll_data.get('fan', {}).get('speed', 0)*100 ] ,
 			"speedFactor": gcode_move.get('speed_factor',1) * 100,
 			"extrFactors": [ gcode_move.get('extrude_factor',1) * 100 ],
 			"babystep": gcode_move.get('homing_origin',[0,0,0])[2]
@@ -739,7 +739,7 @@ def get_heigthmap(self):
 
 	if bed_mesh.get('probed_matrix', None):
 		hmap = []
-		z_matrix = bed_mesh.mesh_matrix
+		z_matrix = bed_mesh['mesh_matrix']
 		#z_matrix = bed_mesh['probed_matrix']
 		mesh_data = bed_mesh				#	see def print_mesh in bed_mesh.py line 572
 
