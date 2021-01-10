@@ -485,13 +485,13 @@ async def rr_status(self, status=0):
 		"temps": {
 			#	this can be better -> will fail onprinters without a bed -> will fail on machines with more that 1 extruder
 			"bed": {
-				"current": self.poll_data['heater_bed']['temperature'] ,
-				"active": self.poll_data['heater_bed']['target'] ,
-				"state": 0 if self.poll_data['heater_bed']['target'] < 20 else 2 ,
+				"current": self.poll_data.get('heater_bed',{}).get('temperature', 0) ,
+				"active": self.poll_data.get('heater_bed',{}).get('target', 0) ,
+				"state": 0 if self.poll_data.get('heater_bed',{}).get('target',0) < 20 else 2 ,
 				"heater": 0
 			},
-			"current": [ self.poll_data['heater_bed']['temperature'], self.poll_data['extruder']['temperature'] ] ,
-			"state": [ 0 if self.poll_data['heater_bed']['target'] < 20 else 2, 0 if self.poll_data['extruder']['target'] < 20 else 2 ] ,
+			"current": [ self.poll_data.get('heater_bed',{}).get('temperature',0), self.poll_data['extruder']['temperature'] ] ,
+			"state": [ 0 if self.poll_data.get('heater_bed',{}).get('target',0) < 20 else 2, 0 if self.poll_data['extruder']['target'] < 20 else 2 ] ,
 			"names": [ "Bed" ] + [ "extruder0" ] ,	#	name is 0 for a extruder 0
 			"tools": {
 				"active": [ [ self.poll_data['extruder']['target'] ] ],
