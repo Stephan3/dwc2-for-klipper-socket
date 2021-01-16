@@ -4,7 +4,7 @@ This is a rewrite of [dwc2-for-klipper](https://github.com/Stephan3/dwc2-for-kli
 
 ![screen](screenshots/screen.PNG?raw=true "screen")
 
-### Things you shold know
+### Things you should know
 - It works everywhere where klipper works, not only with duet boards
 - Klipper is not RepRapFirmware
 - This is a translator between [klipper](https://github.com/KevinOConnor/klipper) and [Duet Web Control](https://github.com/Duet3D/DuetWebControl)
@@ -33,7 +33,7 @@ This is a rewrite of [dwc2-for-klipper](https://github.com/Stephan3/dwc2-for-kli
 This is my klipper systemd service located at ```/etc/systemd/system/klipper.service```
 ```
 [Unit]
-Description=klipper pinter service
+Description=klipper printer service
 After=network.target
 
 [Service]
