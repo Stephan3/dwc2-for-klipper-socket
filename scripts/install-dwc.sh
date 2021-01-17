@@ -109,15 +109,17 @@ WorkingDirectory=$WORKING_DIR
 [Install]
 WantedBy=multi-user.target
 EOF
-# Use systemctl to enable the klipper systemd service script
-    sudo systemctl enable dwc.service
 }
 
-start_software()
+start_services()
 {
     report_status "Launching services..."
     sudo systemctl daemon-reload
+
+    sudo systemctl enable klipper
     sudo systemctl restart klipper
+
+    sudo systemctl enable dwc
     sudo systemctl start dwc
 }
 
@@ -143,4 +145,4 @@ verify_ready
 install_dwc
 install_dwc_service
 fix_klipper_service
-start_software
+start_services
