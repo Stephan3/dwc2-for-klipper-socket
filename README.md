@@ -1,23 +1,22 @@
 # dwc2-for-klipper-socket
 
-This is a rewrite of [dwc2-for-klipper](https://github.com/Stephan3/dwc2-for-klipper). As Klipper offers now a unixsocket API,
-its time to use it and run outside klippers main thread.
+This is a rewrite of [dwc2-for-klipper](https://github.com/Stephan3/dwc2-for-klipper). As Klipper offers now a unixsocket API, its time to use it and run outside klippers main thread.
 
 ![screen](screenshots/screen.PNG?raw=true "screen")
 
-### Things you shold know
-- it work everywhere were klipper works, not only duets
+### Things you should know
+- It works everywhere where klipper works, not only with duet boards
 - Klipper is not RepRapFirmware
 - This is a translator between [klipper](https://github.com/KevinOConnor/klipper) and [Duet Web Control](https://github.com/Duet3D/DuetWebControl)
-- you can restart dwc service at any time without restarting klipper
+- The DWC service can be restarted at any time without restarting klipper
 - Sometimes buttons get a bad response - especially macros
-  - usually a timing issue
-  - make sure action gets performed
-  - **set AJAX retries  for now to 0**
+  - Usually a timing issue
+  - Make sure action gets performed
+  - **Set AJAX retries to 0 for now:**
     - Settings > Machine-Specific > Number of maximum AJAX retries
-- there is a configfile now 
+- There is a configfile now 
 - Klipper's printer.cfg is displayed as a virtual file (config.g) in system section
-    - restart after configuration edits works
+    - Restart after configuration edits works
 - The macros you define in printer.cfg are displayed as virtual files wthin DWC's macros/klipper folder
 - For pause and resume macros you can use:
     - Klipper gcode macros pause_print, resume_print, cancel_print (not case sensitive)
@@ -29,12 +28,12 @@ its time to use it and run outside klippers main thread.
 @th33xitus made a installer, see:
 [Installer](https://github.com/th33xitus/kiauh)
 
-##### Klipper needs to run with a aditional arg -a /tmp/klippy_uds ####
+##### Klipper needs to run with an additional arg ```-a /tmp/klippy_uds``` ####
 
-This s my klipper systemd service located at ```/etc/systemd/system/klipper.service```
+This is my klipper systemd service located at ```/etc/systemd/system/klipper.service```
 ```
 [Unit]
-Description=klipper pinter service
+Description=klipper printer service
 After=network.target
 
 [Service]
@@ -65,7 +64,7 @@ unzip *.zip && for f_ in $(find . | grep '.gz');do gunzip ${f_};done
 rm DuetWebControl-SD.zip
 ```
 
-dwc2-for-klipper-socket can rund with systemd too. here is the service i use for it, located at ```/etc/systemd/system/dwc.service```
+dwc2-for-klipper-socket can run with systemd too. Here is the service I use for it, located at ```/etc/systemd/system/dwc.service```
 ```
 [Unit]
 Description=dwc_webif
