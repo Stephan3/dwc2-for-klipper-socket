@@ -5,7 +5,6 @@
 #
 
 DWC_KLIPPER_FOLDER="dwc2-for-klipper-socket"
-DWC_DIR="sdcard/web"
 
 check_installed()
 {
@@ -26,6 +25,7 @@ install_dwc()
     DWC_DOWNLOAD_URL="https://github.com/Duet3D/DuetWebControl/releases/download/3.1.1/DuetWebControl-SD.zip"
     DWC_ZIP_NAME="DuetWebControl-SD.zip"
     DWC_KLIPPER_REPO="https://github.com/Stephan3/dwc2-for-klipper-socket"
+    DWC_DIR="sdcard/web"
 
     report_status "Installing python libraries"
     pip3 install tornado
@@ -78,6 +78,11 @@ install_dwc_service()
     DWC_SERVICE="/etc/systemd/system/dwc.service"
     ENTRY_POINT="web_dwc2.py"
 
+    if [ -e "$DWC_SERVICE" ] ; then
+        echo "DWC service is already installed"
+        return
+    fi
+
     DIR=${PWD##*/}
 
     if [ "$DIR" = "$DWC_KLIPPER_FOLDER" ] ; then
@@ -87,14 +92,6 @@ install_dwc_service()
     else
         echo "please run this script from the $DWC_KLIPPER_FOLDER directory!"
         exit 0
-    fi
-
-    report_status "Patching config for user..."
-    sed -i "/web_root/c\\web_root: $HOME/$DWC_DIR" $WORKING_DIR/dwc2.cfg
-
-    if [ -e "$DWC_SERVICE" ] ; then
-        echo "DWC service is already installed"
-        return
     fi
 
     # Create systemd service file
