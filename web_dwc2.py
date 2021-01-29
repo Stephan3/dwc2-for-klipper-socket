@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-
+import argparse
 import json
 import time
 import socket
@@ -212,20 +212,30 @@ class klippy_uplink(object):
 		def to_dict(self):
 			return {'id': self.id, 'method': self.method,
 					'params': self.params}
-class logger:
-	def write(self,msg):
-		open("/tmp/dwc2.log", "a").write(msg)
-	def flush(self):
-		pass
 
 def main():
-	
-	open("/tmp/dwc2.log", "w").write("========== Started ==========\n")
-	sys.stdout = logger()
-	sys.stderr = logger()
+	# set default files
+	default_config = os.path.dirname(os.path.abspath(__file__)) + '/dwc2.cfg'
+	default_log = "/tmp/dwc2.log"
+
+	# parse start arguments
+	parser = argparse.ArgumentParser(description="dwc2-for-klipper-socket")
+	parser.add_argument("-l", "--logfile", default=default_log, metavar="<logfile>", help="log file name and location")
+	parser.add_argument("-c", "--configfile", default=default_config, metavar="<logfile>", help="config file name and location")
+	system_args = parser.parse_args()
+
+	class Logger:
+		def write(self, msg):
+			open(system_args.logfile, "a").write(msg)
+		def flush(self):
+			pass
+
+	open(system_args.logfile, "w").write("========== Started ==========\n")
+	sys.stdout = Logger()
+	sys.stderr = Logger()
 
 	config = configparser.ConfigParser()
-	config.read(os.path.dirname(os.path.abspath(__file__)) + '/dwc2.cfg')
+	config.read(system_args.configfile)
 
 	io_loop = IOLoop.current()
 	server = dwc2(config)
