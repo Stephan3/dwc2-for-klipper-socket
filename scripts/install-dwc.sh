@@ -108,6 +108,7 @@ After=klipper.service
 [Service]
 ExecStart= $PYTHON_DIR $WORKING_DIR/$ENTRY_POINT
 WorkingDirectory=$WORKING_DIR
+Nice=-15
 
 [Install]
 WantedBy=multi-user.target
