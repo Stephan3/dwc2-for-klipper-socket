@@ -59,7 +59,7 @@ class dwc2():
 				(r"/.*", self.MainHandler, { "web_root": self.web_root }),
 			],
 			log_function=tornado_logger)
-		self.httpserver = tornado.httpserver.HTTPServer( application, max_buffer_size=250*1024*1024 )
+		self.httpserver = tornado.httpserver.HTTPServer( application, max_buffer_size=512*1024*1024 )
 		self.httpserver.listen( self.port, self.ip )
 		self.ioloop.spawn_callback( self.init_ )
 	def config_def(section, key, default):
