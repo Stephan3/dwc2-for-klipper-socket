@@ -59,7 +59,7 @@ pip3 install tornado
 # get dwc:
 mkdir -p ~/sdcard/web
 cd ~/sdcard/web
-wget https://github.com/Duet3D/DuetWebControl/releases/download/3.1.1/DuetWebControl-SD.zip
+wget https://github.com/Duet3D/DuetWebControl/releases/download/v3.2.2/DuetWebControl-SD.zip
 unzip *.zip && for f_ in $(find . | grep '.gz');do gunzip ${f_};done
 rm DuetWebControl-SD.zip
 ```
