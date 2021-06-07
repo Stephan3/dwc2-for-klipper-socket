@@ -564,6 +564,9 @@ async def rr_status(self, status=0):
 												'temp': self.poll_data[key]['temperature'] })
 	#	accels as graph
 	response['temps']['extra'].append({ 'name': 'max_accel  [*10]', 'temp': self.poll_data['toolhead']['max_accel']/10 })
+	# pwms as graph
+	response['temps']['extra'].append({ 'name': 'extr pwm [%]', 'temp': self.poll_data.get('extruder',{}).get('power', 0) *100 })
+	response['temps']['extra'].append({ 'name': 'bed pwm [%]', 'temp': self.poll_data.get('heater_bed',{}).get('power', 0) *100 })
 	if status == 3:
 		k_stats = self.poll_data.get('print_stats', {})
 		sdcard = self.poll_data.get('virtual_sdcard', {})
@@ -754,8 +757,8 @@ def get_heigthmap(self):
 			',-1.00,' + str(xspace_) + ',' + str(yspace_) + ',' + str( len(z_matrix[0])) + ',' + str(len(z_matrix)) )
 
 		for line in z_matrix:
-			read_by_offset = map(lambda x: x-meane_,line)
-			read = map(lambda x: x-meane_,line)
+			read_by_offset = map(lambda x: round(x- mean ,3),line)
+			read = map(lambda x: round(x,3),line)
 			hmap.append( '  ' + ',  '.join( map(str, read) ))
 
 		return hmap
